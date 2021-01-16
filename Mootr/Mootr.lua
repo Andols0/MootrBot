@@ -5,11 +5,13 @@ local timer = require('timer')
 local SettingsString = fs.readFileSync("./Mootr/settings.json")
 local Mootrsettings = json.decode(SettingsString) or {}
 local SeedsString = fs.readFileSync("./Mootr/seeds.json")
-local Seeds = json.decode(SeedsString) or {}
+local Seeds = json.decode(SeedsString) or {Seed = {}, Info = {}}
 local uv = require("uv")
 local WS = require("coro-websocket")
+local Windows = package.config:sub(1,1)=="\\"
+local discordia = require("discordia")
 
-local CreatePlando
+local CreatePlando, gd
 
 local Weights, Constants = dofile("./Mootr/Weights.lua")
 
@@ -54,22 +56,19 @@ end
 
 
 local function VotesToWheight(Votes)
-    local Weight, Above = {}, {}
-    local Name, Weighing, Over
+    local Weight = {}
+    local Name, Weighing
     print("CONVERT")
     for k,v in pairs(Votes) do
         --print(k)
         if Weights[k] then
-            Name, Weighing, Over = Weights[k]:f(v)
+            Name, Weighing = Weights[k]:f(v)
             if type(Name) == "string" then
                 Weight[Name] = Weighing
             else
                 for name,weighing in pairs(Name) do
                     Weight[name] = weighing
                 end
-            end
-            if Over then
-                Above[k] = true
             end
         else
             print("CAN'T FIND",k)
@@ -114,28 +113,33 @@ Mootr.resetvotes = {help = "Resets the votes",
     end
 }
 
-local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder
+local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root
 
-if package.config:sub(1,1)=="\\" then --Windows
-    Plandocwd = "F:/Dropbox/Lua/Mootr/Rando/OoT-Randomizer/plando-random-settings"
-    Patchcwd = "F:/Dropbox/Lua/Mootr/Rando/OoT-Randomizer"
-    RandoRando = "F:/Dropbox/Lua/Mootr/Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
+if Windows then
+    Root = "F:/Dropbox/Lua/Mootr/"
+    Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
+    Patchcwd = Root.."Rando/OoT-Randomizer"
+    RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
     Python = "python"
-    SeedFolder = "F:/Dropbox/Lua/Mootr/Rando/Seeds"
+    SeedFolder = Root.."Rando/Seeds/"
+    Hashfile = Root.."Rando/Hash.png"
 
-else
-    Plandocwd = "/home/pi/Desktop/Mootr/Rando/OoT-Randomizer//plando-random-settings/"
-    Patchcwd = "/home/pi/Desktop/Mootr/Rando/OoT-Randomizer/"
-    RandoRando = "/home/pi/Desktop/Mootr/Rando/OoT-Randomizer/plando-random-settings/weights/rando_rando_league_s2.json"
+else --Linux (Raspberry)
+    gd = require("gd")
+    Root = "/home/pi/Desktop/Mootr/"
+    Plandocwd = Root.."Rando/OoT-Randomizer//plando-random-settings/"
+    Patchcwd = Root.."Rando/OoT-Randomizer/"
+    RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
     Python = "python3.6"
-    SeedFolder = "/home/pi/Desktop/Mootr/Rando/Seeds/"
+    SeedFolder = Root.."Rando/Seeds/"
+    Hashfile = Root.."Rando/Hash.png"
 end
 
 Mootr.generate = {help = "Generates the MoOTR seed",
     f = function(message)
-        Mootr.weight.f(message, true)
+        local Info = Mootr.weight.f(message, true)
         message:reply("Weightsfile generated\nStarting settings file")
-        CreatePlando(message)
+        CreatePlando(message, Info)
     end
 }
 
@@ -148,21 +152,21 @@ Mootr.weight = {help = "Generates the wheights file",
         local Channel = client:getGuild("389836194516566018"):getChannel(Settings.channel)--message.guild:getChannel(Settings.channel)
         local Messages = Channel:getMessages()
         local Votes = {}
-        local tot = 0
+        local Info = {Yes = 0, No = 0, Max = 0, Cat = ""}
         print("READ VOTES")
         for _, Message in pairs(Messages) do
             if not(Settings.ignore[Message.id]) and not(Message == message) then
                 local SettingName = Message.content:match("__%*%*(.-)%*%*__") or Message.content:match("%*%*__(.-)__%*%*") or Message.content
                 Votes[SettingName] = {Yes = 0, No = 0, Tot = 0}
                 --print(SettingName)
-                tot = tot + 1
-                --print(tot)
                 local Rule = Votes[SettingName]
                 for _,v in pairs(Message.reactions) do
                     if v.emojiId == Settings.Yes or v.emojiName == Settings.Yes then
+                        Info.Yes = Info.Yes + v.count - 1
                         Rule.Yes = Rule.Yes + v.count
                         Rule.Tot = Rule.Tot + v.count
                     elseif v.emojiId == Settings.No or v.emojiName == Settings.No then
+                        Info.No = Info.No + v.count - 1
                         Rule.No = Rule.No + v.count
                         Rule.Tot = Rule.Tot + v.count
                     elseif (v.emojiId == Settings.FY or v.emojiName == Settings.FY) and not(Rule.ForceYes) then
@@ -171,8 +175,13 @@ Mootr.weight = {help = "Generates the wheights file",
                         Rule.ForceNo = true
                     end
                 end
+                if Info.Max < Rule.Yes  + Rule.No - 2 then
+                    Info.Max = Rule.Yes - 1 + Rule.No -1
+                    Info.Cat = SettingName
+                end
             end
         end
+        print(Info.Cat, Info.Max, Info.Yes, Info.No)
         local ConvertedWeights = VotesToWheight(Votes)
         for k,v in pairs(Constants) do
             ConvertedWeights[k] = {}
@@ -184,15 +193,18 @@ Mootr.weight = {help = "Generates the wheights file",
         --message:delete()
         --Printtable(ConvertedWeights)
         --message.member:send {
-        message:reply {
-            file = {"weights.json",(json.encode(ConvertedWeights)) }
-        }
+        --if not SkipPost then
+            message:reply {
+                file = {"weights.json",(json.encode(ConvertedWeights)) }
+            }
+        --end
         fs.writeFileSync(RandoRando, json.encode(ConvertedWeights))
+        return Info
    end
 }
 
 
-local function CreatePatch(message)
+local function CreatePatch(message, Info)
     local Patchstderr = uv.new_pipe(false)
     local randolog = ""
     local time = os.time()
@@ -208,21 +220,23 @@ local function CreatePatch(message)
                 fs.writeFileSync(Patchcwd.."/Roms/Log.txt", randolog)
                 local file = randolog:match("Created patchfile at: .+[/\\](.-)%.zpf")
                 p(file)
-                table.insert(Seeds,file)
+                table.insert(Seeds.Seed,file)
+                Info.Roller = message.member.name
+                Seeds.Info[file] = Info
                 SaveSeeds()
-                --local Filepath = SeedFolder..file..".zpf"
+                local Filepath = SeedFolder..file..".zpf"
                 --print(Filepath)
-                --message.member:send{
-                    --file = Filepath
-                --}
-                message:send("Seed generated")
+                message.member:send{
+                    file = Filepath
+                }
+                message:reply("Seed generated and sent. You can also use ½publish to send it to the public channel.")
             end)()
         else
             coroutine.wrap(function()
                 message.member:send("Gen FAILED tell Andols")
             end)()
             --if randolog:match(".*(junk).*") then
-                --print("HEEEJ")
+                --print("HEEEJ") --Add triforcehunt stuff here
             --end
         end
         coroutine.wrap(function()
@@ -242,7 +256,7 @@ local function CreatePatch(message)
       end)
 end
 
-function CreatePlando(message)
+function CreatePlando(message, Info)
     local plandostderr = uv.new_pipe(false)
     uv.spawn(Python, {
         stdio = {0, 1, plandostderr},
@@ -253,7 +267,7 @@ function CreatePlando(message)
             coroutine.wrap(function()
                 message:reply("Settings file generated\nStarting randomizer")
             end)()
-            CreatePatch(message)
+            CreatePatch(message, Info)
         end
     end)
 
@@ -268,12 +282,49 @@ function CreatePlando(message)
       end)
 end
 
+local Publishtemplate = {
+        title = "Todays patch file!",
+        description = "Have fun and MoOTR safely?",
+        color = 9637520,
+        timestamp = "2021-01-07T10:03:14.328Z",
+        footer = {
+            icon_url = "https://static-cdn.jtvnw.net/jtv_user_pictures/ca0e1fe6-0a2d-4a53-a118-bae6505bb3d4-profile_image-70x70.png",
+            text = "Mootr On"
+        },
+        fields = {
+            {
+                name = "Rolled by:",
+                value = "Testrunner",
+            },
+            {
+                name = "Number of votes",
+                value = 5,
+                inline = true
+            },
+            {
+                name = "Yes",
+                value = "6",
+                inline = true
+            },
+            {
+                name = "No",
+                value = 5,
+                inline = true
+            },
+            {
+                name = "Most voted category",
+                value = "Keysanity"
+            }
+        },
+        image = { url = "attachment://Hash.png"},
+    }
+
 
 Mootr.test = {help = "asd",
     f = function(message)
-        Mootr.generate.f(message, true)
-        message:reply("Weightsfile generated\nStarting settings file")
-        CreatePlando(message)
+        --Mootr.generate.f(message, true)
+        --message:reply("Weightsfile generated\nStarting settings file")
+        --CreatePlando(message)
         --CreatePatch(message)
     end
 }
@@ -282,7 +333,7 @@ Mootr.test = {help = "asd",
 Mootr.setpublic = {help = "Sets the channel for public messages",
     f = function(message, arg)
         local Settings = SettingsExists(message)
-        Settings.public = arg
+        Settings.public = message.mentionedChannels.first.id or arg
         message:addReaction("👍")
         Save()
     end
@@ -339,20 +390,55 @@ Mootr.ping = {help = "pong",
 
 Mootr.publish = {help = "Publish the seed to the public channel",
     f = function(message)
+        --print("Start publish")
         local Settings = SettingsExists(message)
         if not(Settings) or (Settings and not(Settings.public)) then
             return message:reply("You need to set a public channel")
         end
+        local Seed = Seeds.Seed[#Seeds.Seed]
+        local Hash = json.decode(fs.readFileSync(SeedFolder..Seed.."_Spoiler.json")).file_hash
+        --p("Hash", Hash)
+        local Info = Seeds.Info[Seed]
+        if Windows then --The graphic library can't load into this enviroment on windows so do this in a separate file.
+            local command = 'F:\\Dropbox\\Lua\\Mootr\\Mootr\\Image.lua "%s" "%s" "%s" "%s" "%s"'
+            os.execute(command:format(Hash[1], Hash[2], Hash[3], Hash[4], Hash[5]))
+        else
+            local image = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/Background.png")
+            local Hash1 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[1]..".png")
+            local Hash2 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[2]..".png")
+            local Hash3 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[3]..".png")
+            local Hash4 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[4]..".png")
+            local Hash5 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[5]..".png")
+            image:copy(Hash1,8, 3, 0, 0, 64, 64)
+            image:copy(Hash2, 88, 3, 0, 0, 64, 64)
+            image:copy(Hash3, 168, 3, 0, 0, 64, 64)
+            image:copy(Hash4, 248, 3, 0, 0, 64, 64)
+            image:copy(Hash5, 322, 3, 0, 0, 64, 64)
+            image:png(Hashfile,100)
+        end
+        --print("Created image")
+        Publishtemplate.timestamp = discordia.Date():toISO('T', 'Z')
+        Publishtemplate.fields[1].value = Info.Roller
+        Publishtemplate.fields[2].value = Info.Yes + Info.No
+        Publishtemplate.fields[3].value = Info.Yes
+        Publishtemplate.fields[4].value = Info.No
+        Publishtemplate.fields[5].value = Info.Cat
+        --print("Filled template")
         message.guild:getChannel(Settings.public):send {
-            file = SeedFolder..Seeds[#Seeds]..".zpf"
+            embed = Publishtemplate,
+            files = {
+                SeedFolder..Seed..".zpf",
+                Hashfile
+            }
         }
+        --print("Message sent")
     end
 }
 
 Mootr.sneaky = {help = "Sends a PM with the latest generated seed",
     f = function(message)
         message.member:send {
-            file = SeedFolder..Seeds[#Seeds]..".zpf"
+            file = SeedFolder..Seeds.Seed[#Seeds.Seed]..".zpf"
         }
     end
 }
@@ -368,7 +454,7 @@ Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
         local options = WS.parseUrl("wss://racetime.gg/ws/race/"..arg)
         p(options)
         coroutine.wrap(function()
-            local res, read, write = WS.connect(options)
+            local _, read, write = WS.connect(options)
             for Data in read do
                 if Data.opcode == 9 then
                     print(os.date(), "ping")
@@ -550,9 +636,6 @@ local  Perm = {}
 
 function Perm.Check(message)
     print("Checkperm")
-    if message.member.id == "279970636284035073" then --Nagi
-        return true
-    end
     for _,v in pairs(Whitelist) do
         if message.member:hasRole(v) then
             return true

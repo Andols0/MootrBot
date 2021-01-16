@@ -1,0 +1,15 @@
+local Hash1, Hash2, Hash3, Hash4, Hash5 = ...
+local gd = require("gd")
+
+local image = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/Background.png")
+Hash1 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash1..".png")
+Hash2 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash2..".png")
+Hash3 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash3..".png")
+Hash4 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash4..".png")
+Hash5 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash5..".png")
+image:copy(Hash1,8, 3, 0, 0, 64, 64)
+image:copy(Hash2, 88, 3, 0, 0, 64, 64)
+image:copy(Hash3, 168, 3, 0, 0, 64, 64)
+image:copy(Hash4, 248, 3, 0, 0, 64, 64)
+image:copy(Hash5, 322, 3, 0, 0, 64, 64)
+image:png("F:/Dropbox/Lua/Mootr/Rando/Hash.png",100)

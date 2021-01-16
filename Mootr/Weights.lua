@@ -48,12 +48,6 @@ local function Bridge(self, votes)
     return "bridge", Bridges
 end
 
---[[vanilla = 0.5,
-        dungeon = 0.5,
-        keysanity = 0.5,
-        dungeon = 0.5,
-        remove = 0.5
-]]
 local Keyweights = {
     Num = 0,
     votes = {
@@ -123,6 +117,8 @@ local function Keys(self, votes)
                 keysanity = SanYes/Tot*100,
                 dungeon = Mix/Tot*100/2,
                 remove = SyYes/Tot*100,
+                overworld = 0, --What to do?
+                any_dungeon = 0 --What to do?
             }
         end
     end
@@ -217,7 +213,6 @@ local function Multicat(self, votes)
         --Cat.No = votes.No
 
     end
-    local Over = Yes > 70
     return Weights
 end
 
@@ -335,10 +330,10 @@ local Weights = {
         options = {
             "off",
             "low",
-            "regular",
-            "random",
         },
         def = "off",
+        "regular",
+        "random",
         f = Multichoice
     },
     ["Cowsanity"] = {
@@ -353,10 +348,13 @@ local Weights = {
     ["Songsanity"] = {
         name = "shuffle_song_items",
         options = {
-            "true",
-            "false"
+            "song",
+            "any"
         },
-        def = "false",
+        fixed = {
+            dungeon = 0
+        },
+        def = "song",
         f = Multichoice
     },
     ["Static Items Shuffle (Ocarina, egg)"] = {
@@ -411,11 +409,15 @@ local Weights = {
             },
             shuffle_mapcompass = {
                 options = {
-                    "remove",
                     "startwith",
                     "vanilla",
                     "dungeon",
                     "keysanity"
+                },
+                fixed = {
+                    remove = 0,
+                    overworld = 0, --What to do?
+                    any_dungeon = 0, --What to do?
                 },
                 def = "startwith"
             },
@@ -496,13 +498,17 @@ local Weights = {
         options = {
             "strong",
             "very_strong",
-            "tournament"
+            "scrubs",
+            "tournament_s3"
         },
         fixed = {
             useless = 0,
             balanced = 0,
+            bingo = 0,
+            scrubs = 0,
+            tournament = 0,
         },
-        def = "tournament",
+        def = "scrubs",
         f = Multichoice
     },
     ["Chest Size Match Contents"] = {
@@ -584,7 +590,9 @@ local Weights = {
         },
         fixed = {
             remove = 0,
-            vanilla = 0
+            vanilla = 0, --What to do?
+            overworld = 0, --What to do?
+            any_dungeon = 0 --what to do?
         },
         def = "dungeon",
         f = Multichoice
@@ -594,12 +602,43 @@ local Weights = {
 
 local Static = {
     open_kakariko = {
-        ["true"]  = 50.0,
-        ["false"]  = 50.0
+        open = 50, --What to do?
+        zelda = 0,
+        closed = 50
+    },
+    bridge_medallions = {
+        0, -- 1
+        0, -- 2
+        0, -- 3
+        0, -- 4
+        0, -- 5
+        ["6"] = 100
+    },
+    bridge_stones = {
+        0, -- 1
+        0, -- 2
+        ["3"] = 100
+    },
+    bridge_rewards = {
+        0, -- 1
+        0, -- 2
+        0, -- 3
+        0, -- 4
+        0, -- 5
+        0, -- 6
+        0, -- 7
+        0, -- 8
+        ["9"] = 100
     },
     one_item_per_dungeon  = {
         ["true"] = 0,
         ["false"] = 100
+    },
+    shuffle_fortresskeys = { --What to do?
+        vanilla = 100,
+        overworld = 0,
+        any_dungeon = 0,
+        keysanity = 0
     },
     trials_random  = {
         ["true"] = 0,
@@ -619,8 +658,9 @@ local Static = {
         ["false"] = 100
     },
     mix_entrance_pools  = {
-        ["true"] = 0,
-        ["false"] = 100
+        ["all"] = 0,
+        ["indoor"] = 0,
+        ["off"] = 100
     },
     decouple_entrances  = {
         ["true"] = 0,
@@ -653,19 +693,62 @@ local Static = {
         remove  = 12.5,
         vanilla  = 12.5,
         dungeon  = 12.5,
+        overworld = 0, --What to do?
+        any_dungeon = 0, --What to do?
         keysanity  = 12.5,
         lacs_vanilla  = 12.5,
         lacs_medallions  = 12.5,
         lacs_stones  = 12.5,
-        lacs_dungeons  = 12.5
+        lacs_dungeons  = 12.5,
+        lacs_tokens = 0,
+    },
+    lacs_medallions = { --What to do?
+        0, --1
+        0, --2
+        0, --3
+        0, --4
+        0, --5
+        ["6"] = 100 --6
+    },
+    lacs_stones = { --What to do?
+        0,
+        0, --2
+        ["3"] = 100 --3
+    },
+    lacs_rewards = { --What to do?
+        0, --1
+        0, --2
+        0, --3
+        0, --4
+        0, --5
+        0, --6
+        0, --7
+        0, --8
+        ["9"] = 100
     },
      all_reachable  = {
         ["true"] = 100.0,
         ["false"] = 0
     },
-    logic_no_night_tokens_without_suns_song  = {
+    skip_child_zelda = { --What to do?
+        ["true"] = 0,
+        ["false"] = 100
+    },
+    complete_mask_quest = { --What to do?
         ["true"] = 50.0,
         ["false"] = 50.0
+    },
+    fast_bunny_hood = { --What to do?
+        ["true"] = 100,
+        ["false"] = 0
+    },
+    logic_no_night_tokens_without_suns_song  = {
+        ["true"] = 50.0,
+        ["false"] = 50.0--100?
+    },
+    no_collectible_hearts = {
+        ["false"] = 100,
+        ["true"] = 0
     },
     skip_some_minigame_phases  = {
         ["true"] = 100.0,
@@ -698,7 +781,7 @@ local Static = {
         ["false"] = 100
     },
     big_poe_count  = {
-        ["1"] = 100,  --1
+        100,  --1
         0,    --2
         0,    --3
         0,    --4
@@ -707,7 +790,7 @@ local Static = {
         0,    --7
         0,    --8
         0,    --9
-        0    --10
+        ["10"] = 0    --10
     },
     ocarina_songs  = {
         ["true"] = 0,
