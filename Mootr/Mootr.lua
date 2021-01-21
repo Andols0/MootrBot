@@ -2,10 +2,8 @@ local fs = require("fs")
 local json = require("json")
 local Mootr = {help = "It's MOOTR ZOOTR"}
 local timer = require('timer')
-local SettingsString = fs.readFileSync("./Mootr/settings.json")
-local Mootrsettings = json.decode(SettingsString) or {}
-local SeedsString = fs.readFileSync("./Mootr/seeds.json")
-local Seeds = json.decode(SeedsString) or {Seed = {}, Info = {}}
+local Mootrsettings = json.decode(fs.readFileSync("./Mootr/settings.json")) or {}
+local Seeds = json.decode(fs.readFileSync("./Mootr/seeds.json")) or {Seed = {}, Info = {}}
 local uv = require("uv")
 local WS = require("coro-websocket")
 local Windows = package.config:sub(1,1)=="\\"
@@ -14,6 +12,25 @@ local discordia = require("discordia")
 local CreatePlando, gd
 
 local Weights, Constants = dofile("./Mootr/Weights.lua")
+local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons
+
+do --Set some paths
+    if Windows then
+        Root = "F:/Dropbox/Lua/Mootr/"
+        Python = "python"
+    else --Linux (Raspberry)
+        gd = require("gd")
+        Root = "/home/pi/Desktop/Mootr/"
+        Python = "python3.6"
+    end
+
+    Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
+    Patchcwd = Root.."Rando/OoT-Randomizer"
+    RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
+    SeedFolder = Root.."Rando/Seeds/"
+    Hashfile = Root.."Rando/Hash.png"
+    Icons = Root.."Mootr/Images/"
+end
 
 local function SettingsExists(message)
     if not Mootrsettings[message.guild.id] then
@@ -23,7 +40,7 @@ local function SettingsExists(message)
 end
 
 local Deep = 0
-local Tab = "\t"
+local Tab = "\t" --debug function
 local function Printtable(table)
     for k,v in pairs(table) do
         print(Tab:rep(Deep)..k,v)
@@ -89,16 +106,7 @@ Mootr.resetvotes = {help = "Resets the votes",
         message:addReaction("👍")
         for _, Message in pairs(Messages) do
             if not(Settings.ignore[Message.id] or Message == message) then
-                Message:clearReactions()  --Version 1
-                --[[for _,Reaction in pairs(Message.reactions) do --Version 2
-                    if reaction ~= Reaction then
-                        for _,member in pairs(Reaction:getUsers()) do
-                            if member.id ~= "770332007871283223" then
-                                Reaction:delete(member.id)
-                            end
-                        end
-                    end
-                end]]
+                Message:clearReactions()
             end
         end
         local Yes = ResolveEmoji(message, Settings.Yes)
@@ -112,29 +120,6 @@ Mootr.resetvotes = {help = "Resets the votes",
         ClearMessages(5000,message)
     end
 }
-
-local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root
-
-if Windows then
-    Root = "F:/Dropbox/Lua/Mootr/"
-    Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
-    Patchcwd = Root.."Rando/OoT-Randomizer"
-    RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
-    Python = "python"
-    SeedFolder = Root.."Rando/Seeds/"
-    Hashfile = Root.."Rando/Hash.png"
-
-else --Linux (Raspberry)
-    gd = require("gd")
-    Root = "/home/pi/Desktop/Mootr/"
-    Plandocwd = Root.."Rando/OoT-Randomizer//plando-random-settings/"
-    Patchcwd = Root.."Rando/OoT-Randomizer/"
-    RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
-    Python = "python3.6"
-    SeedFolder = Root.."Rando/Seeds/"
-    Hashfile = Root.."Rando/Hash.png"
-end
-
 Mootr.generate = {help = "Generates the MoOTR seed",
     f = function(message)
         local Info = Mootr.weight.f(message, true)
@@ -143,13 +128,13 @@ Mootr.generate = {help = "Generates the MoOTR seed",
     end
 }
 
-Mootr.weight = {help = "Generates the wheights file",
+Mootr.weight = {help = "Generates the weights file",
     f = function(message)
-        local Settings = Mootrsettings["389836194516566018"]--[message.guild.id]
+        local Settings = Mootrsettings[message.guild.id]
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
             message:reply("You need to set the voting channel")
         end
-        local Channel = client:getGuild("389836194516566018"):getChannel(Settings.channel)--message.guild:getChannel(Settings.channel)
+        local Channel = message.guild:getChannel(Settings.channel)
         local Messages = Channel:getMessages()
         local Votes = {}
         local Info = {Yes = 0, No = 0, Max = 0, Cat = ""}
@@ -321,11 +306,7 @@ local Publishtemplate = {
 
 
 Mootr.test = {help = "asd",
-    f = function(message)
-        --Mootr.generate.f(message, true)
-        --message:reply("Weightsfile generated\nStarting settings file")
-        --CreatePlando(message)
-        --CreatePatch(message)
+    f = function()
     end
 }
 
@@ -403,12 +384,12 @@ Mootr.publish = {help = "Publish the seed to the public channel",
             local command = 'F:\\Dropbox\\Lua\\Mootr\\Mootr\\Image.lua "%s" "%s" "%s" "%s" "%s"'
             os.execute(command:format(Hash[1], Hash[2], Hash[3], Hash[4], Hash[5]))
         else
-            local image = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/Background.png")
-            local Hash1 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[1]..".png")
-            local Hash2 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[2]..".png")
-            local Hash3 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[3]..".png")
-            local Hash4 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[4]..".png")
-            local Hash5 = gd.createFromPng("F:/Dropbox/Lua/Mootr/Mootr/Images/"..Hash[5]..".png")
+            local image = gd.createFromPng(Icons.."Background.png")
+            local Hash1 = gd.createFromPng(Icons..Hash[1]..".png")
+            local Hash2 = gd.createFromPng(Icons..Hash[2]..".png")
+            local Hash3 = gd.createFromPng(Icons..Hash[3]..".png")
+            local Hash4 = gd.createFromPng(Icons..Hash[4]..".png")
+            local Hash5 = gd.createFromPng(Icons..Hash[5]..".png")
             image:copy(Hash1,8, 3, 0, 0, 64, 64)
             image:copy(Hash2, 88, 3, 0, 0, 64, 64)
             image:copy(Hash3, 168, 3, 0, 0, 64, 64)
@@ -443,6 +424,34 @@ Mootr.sneaky = {help = "Sends a PM with the latest generated seed",
     end
 }
 
+local function RacetimeSocket(message,options, Seed, Settings)
+    print("Connecting to WS")
+    local _, read, write = WS.connect(options)
+    local Done = false
+    for Data in read do
+        if Data.opcode == 1 then
+            local data = json.decode(Data.payload)
+            if data.type == "race.data" then
+                if data.race.status.value == "finished" then
+                    Done = true
+                    print("Race finished, posting seed")
+                    local file = SeedFolder..Seed.."_Spoiler.json"
+                    message.guild:getChannel(Settings.public):send {
+                        content = "Race is now finished.\nHere is the spoiler log:",
+                        file = file
+                    }
+                    write()
+                end
+            end
+        end
+    end
+    if not Done then
+        print("Reconnecting WS")
+        return RacetimeSocket(message,options, Seed) --DC (i hope) reconnect.
+    end
+
+end
+
 Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
     f = function(message, arg)
         local Settings = SettingsExists(message)
@@ -450,32 +459,8 @@ Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
             return message:reply("You need to set a public channel")
         end
         message:addReaction("👀")
-        print(arg)
         local options = WS.parseUrl("wss://racetime.gg/ws/race/"..arg)
-        p(options)
-        coroutine.wrap(function()
-            local _, read, write = WS.connect(options)
-            for Data in read do
-                if Data.opcode == 9 then
-                    print(os.date(), "ping")
-                else
-                    local data = json.decode(Data.payload)
-                    if data.type == "race.data" then
-                        print(os.date(), "data")
-                        if data.race.status.value == "finished" then
-                            print("KLAR!!!")
-                            local file = SeedFolder..Seeds[#Seeds].."_Spoiler.json"
-                            message.guild:getChannel(Settings.public):send {
-                                content = "Race is now finished.\nHere is the spoiler log:",
-                                file = file
-                            }
-                            write()
-                        end
-                    end
-                end
-            end
-            print("Race ENDED")
-        end)()
+        coroutine.wrap(RacetimeSocket)(message, options, Seeds.Seed[#Seeds.Seed], Settings)
     end
 }
 
@@ -573,7 +558,7 @@ local Reactionfunction3 = client:on("reactionRemove", function(reaction,_)
     end
 end)
 
-local Reactionfunction4 = client:on("reactionRemoveUncached", function(channel, messageId, hash, userid)
+local Reactionfunction4 = client:on("reactionRemoveUncached", function(channel, messageId, hash)
     local Settings = SettingsExists(channel)
     if Settings.channel == channel.id then
         if hash == Settings.FN or hash == Settings.FY then
