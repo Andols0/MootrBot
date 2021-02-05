@@ -1,17 +1,17 @@
 local Bridgeweights = {
-    Num = 0,
-    votes = {
-        open = 0.5,
-        vanilla = 0.5,
-        stones = 0.5,
-        medallions = 0.5,
-        dungeons = 0.5
-    }
+    Num = 0
 }
 local function Bridge(self, votes)
     local type = self.type
-    if Bridgeweights.Num == 6 then
-        Bridgeweights.votes = nil
+    if Bridgeweights.Num == 5 or Bridgeweights.Num == 0 then
+        Bridgeweights.votes = {
+            open = 0.5,
+            vanilla = 0.5,
+            stones = 0.5,
+            medallions = 0.5,
+            dungeons = 0.5
+        }
+        Bridgeweights.Num = 0
         Bridgeweights.Force = false
     end
     Bridgeweights.votes = Bridgeweights.votes or { open = 0.5, vanilla = 0.5, stones = 0.5, medallions = 0.5, dungeons = 0.5}
@@ -50,19 +50,18 @@ end
 
 local Keyweights = {
     Num = 0,
-    votes = {
-        SyYes = 0,
-        SyNo = 0,
-        SanYes = 0,
-        SanNo = 0
-    }
 }
 
 local function Keys(self, votes)
     local type = self.type
     local Keyes
-    if Keyweights.Num == 2 then
-        Keyweights.votes =  { SyYes = 0, SyNo = 0, SanYes = 0, SanNo = 0}
+    if Keyweights.Num == 2 or Keyweights.Num == 0 then
+        Keyweights.votes =  {
+            SyYes = 0,
+            SyNo = 0,
+            SanYes = 0,
+            SanNo = 0
+        }
         Keyweights.Num = 0
     end
     local Vot = Keyweights.votes
@@ -126,6 +125,69 @@ local function Keys(self, votes)
 
     return "shuffle_smallkeys" , Keyes
 end
+
+local Ganonweights = {
+    Num = 0,
+}
+
+local function GanonKey(self, votes)
+    local type = self.type
+    if Ganonweights.Num == 8 or Ganonweights.Num == 0  then
+        Ganonweights.votes = {
+            remove = 0.5,
+            vanilla = 0.5,
+            any_dungeon = 0.5,
+            keysanity = 0.5,
+            lacs_vanilla = 0.5,
+            lacs_stones = 0.5,
+            lacs_medallions = 0.5,
+            lacs_dungeons = 0.5,
+        }
+        Ganonweights.Force = false
+        Ganonweights.Num = 0
+    end
+    local Vote = Ganonweights.votes
+    if votes.ForceYes or (votes.Yes - votes.No >= 5) then
+        for k,_ in pairs(Vote) do
+            if k ~= type then
+                Vote[k] = 0
+            end
+        end
+        Ganonweights.Force = true
+    elseif votes.ForceNo or (votes.No - votes.Yes >= 5) then
+        Vote[type] = 0
+    elseif not(Ganonweights.Force) then
+        local Score = votes.Yes - votes.No
+        if Score > 0 then
+            Vote[type] = Score
+        end
+    end
+
+    local Tot = 0
+    for _,v in pairs(Vote) do
+        Tot = Tot + v
+    end
+    local GKey = {
+        remove = Vote.remove/Tot*100,
+        vanilla = Vote.vanilla/Tot*100,
+        any_dungeon = Vote.any_dungeon/Tot*100,
+        keysanity = Vote.keysanity/Tot*100,
+        lacs_vanilla = Vote.lacs_vanilla/Tot*100,
+        lacs_stones = Vote.lacs_stones/Tot*100,
+        lacs_medallions = Vote.lacs_medallions/Tot*100,
+        lacs_dungeons = Vote.lacs_dungeons/Tot*100,
+        dungeon = 0,
+        overworld = 0,
+        lacs_tokens = 0,
+    }
+
+    Ganonweights.Num = Ganonweights.Num + 1
+    if Ganonweights.Num == 8 then
+        p(GKey)
+    end
+    return "shuffle_ganon_bosskey", GKey
+end
+
 
 local function Multichoice(self, votes)
     local fixed = self.fixed or {}
@@ -597,6 +659,38 @@ local Weights = {
         def = "dungeon",
         f = Multichoice
     },
+    ["Ganon Boss Key Removed (Open Door)"] = {
+        type = "remove",
+        f =  GanonKey
+    },
+    ["Ganon Boss Key In Vanilla location"] = {
+        type = "vanilla",
+        f = GanonKey
+    },
+    ["Ganon Boss Key In Keysanity (Dungeon)"] = {
+        type = "any_dungeon",
+        f = GanonKey
+    },
+    ["Ganon Boss Key In Keysanity (Everywhere)"] = {
+        type = "keysanity",
+        f = GanonKey
+    },
+    ["Ganon Boss Key On LACS: Vanilla"] = {
+        type = "lacs_vanilla",
+        f = GanonKey
+    },
+    ["Ganon Boss Key On LACS: Stones"] = {
+        type = "lacs_stones",
+        f =  GanonKey
+    },
+    ["Ganon Boss Key On LACS: Medallions"] = {
+        type = "lacs_medallions",
+        f = GanonKey
+    },
+    ["Ganon Boss Key On LACS: All Dungeons"] = {
+        type = "lacs_dungeons",
+        f = GanonKey
+    },
 }
 
 
@@ -688,19 +782,6 @@ local Static = {
         0.0,
         0.0,
         0.0
-    },
-    shuffle_ganon_bosskey  = {
-        remove  = 12.5,
-        vanilla  = 12.5,
-        dungeon  = 12.5,
-        overworld = 0, --What to do?
-        any_dungeon = 0, --What to do?
-        keysanity  = 12.5,
-        lacs_vanilla  = 12.5,
-        lacs_medallions  = 12.5,
-        lacs_stones  = 12.5,
-        lacs_dungeons  = 12.5,
-        lacs_tokens = 0,
     },
     lacs_medallions = { --What to do?
         0, --1

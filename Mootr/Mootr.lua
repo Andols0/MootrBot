@@ -129,12 +129,12 @@ Mootr.generate = {help = "Generates the MoOTR seed",
 }
 
 Mootr.weight = {help = "Generates the weights file",
-    f = function(message)
+    f = function(message, SkipPost)
         local Settings = Mootrsettings[message.guild.id]
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
             message:reply("You need to set the voting channel")
         end
-        local Channel = message.guild:getChannel(Settings.channel)
+        local Channel = client:getChannel(Settings.channel)
         local Messages = Channel:getMessages()
         local Votes = {}
         local Info = {Yes = 0, No = 0, Max = 0, Cat = ""}
@@ -166,7 +166,6 @@ Mootr.weight = {help = "Generates the weights file",
                 end
             end
         end
-        print(Info.Cat, Info.Max, Info.Yes, Info.No)
         local ConvertedWeights = VotesToWheight(Votes)
         for k,v in pairs(Constants) do
             ConvertedWeights[k] = {}
@@ -178,11 +177,11 @@ Mootr.weight = {help = "Generates the weights file",
         --message:delete()
         --Printtable(ConvertedWeights)
         --message.member:send {
-        --if not SkipPost then
+        if not SkipPost then
             message:reply {
                 file = {"weights.json",(json.encode(ConvertedWeights)) }
             }
-        --end
+        end
         fs.writeFileSync(RandoRando, json.encode(ConvertedWeights))
         return Info
    end

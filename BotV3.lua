@@ -187,7 +187,8 @@ client:on('messageCreate', function(message)
 	local Owner = message.member == message.guild.owner
 	--if not(IsGod) then return end    -----ONLY ME ATM
 	local prefix = Settings.Prefix or DefaultPrefix
-    local cmd, arg = message.content:match('^'..prefix..'(%S+)%s*(.*)')
+	local cmd, arg = message.content:match('^'..prefix..'(%S+)%s*(.*)')
+	if arg == "" then arg = nil end
 	local Name, Fullname = message.author.name, message.author.tag
 
     if cmd then
