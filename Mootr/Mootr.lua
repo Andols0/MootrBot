@@ -618,8 +618,11 @@ local Whitelist = {
 
 local  Perm = {}
 
-function Perm.Check(message)
+function Perm.Check(message, cmd)
     print("Checkperm")
+    if cmd == "ping" then
+        return true
+    end
     for _,v in pairs(Whitelist) do
         if message.member:hasRole(v) then
             return true
