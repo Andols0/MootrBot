@@ -188,36 +188,35 @@ local function GanonKey(self, votes)
     return "shuffle_ganon_bosskey", GKey
 end
 
+local function VotesToWheight(votes)
+    -- The return is Yes, No
+    if votes.ForceYes then
+        return 100, 0
+    elseif votes.ForceNo then
+        return 0, 100
+    else
+        if votes.Tot == 2 then
+            return 50, 50
+        else
+            if votes.Yes - votes.No >= 5 then
+                return 100, 0
+            elseif votes.No - votes.Yes >= 5 then
+                return 0, 100
+            else
+                local Yes = votes.Yes  / votes.Tot * 100
+                local No = votes.No   / votes.Tot  * 100
+                return Yes, No
+            end
+        end
+    end
+end
 
 local function Multichoice(self, votes)
     local fixed = self.fixed or {}
     local options = self.options
     local default = self.def
     local Weights = {}
-    local Yes, No
-    if votes.ForceYes then
-        Yes = 100
-        No = 0
-    elseif votes.ForceNo then
-        No = 100
-        Yes = 0
-    else
-        if votes.Tot == 2 then
-            Yes = 50
-            No = 50
-        else
-            if votes.Yes - votes.No >= 5 then
-                Yes = 100
-                No = 0
-            elseif votes.No - votes.Yes >= 5 then
-                Yes = 0
-                No = 100
-            else
-                Yes = votes.Yes  / votes.Tot * 100
-                No = votes.No   / votes.Tot  * 100
-            end
-        end
-    end
+    local Yes, No = VotesToWheight(votes)
     Weights[default] = No
     local Splityes = Yes / (#options - 1)
     for i = 1, #options do
@@ -238,23 +237,8 @@ end
 
 local function Multicat(self, votes)
     local Weights = {}
-    local Yes, No
-    if votes.ForceYes then
-        Yes = 100
-        No = 0
-    elseif votes.ForceNo then
-        No = 100
-        Yes = 0
-    else
-        if votes.Tot == 2 then
-            Yes = 50
-            No = 50
-        else
-            Yes = votes.Yes  / votes.Tot * 100
-            No = votes.No   / votes.Tot  * 100
-        end
-    end
-    for Name, data in pairs(self.categories) do
+    local Yes, No = VotesToWheight(votes)
+    for Name, data in pairs(self.categories) do  --Make the thing loop through Multichoice?
         Weights[Name] = {}
         local Cat = Weights[Name]
         local options = data.options
