@@ -39,7 +39,69 @@ local function Fullnametoid(guild,text)
 	end
 end
 
+local Comm, Perm = {}, {}
+
+local Modulepath={}
+local Unloader = {}
+local OnClock = {}
+
+function UnloadModule(name)
+	Comm[name] = nil
+	Perm[name] = nil
+	if Unloader[name] then
+		for _,v in ipairs(Unloader[name]) do
+			if type(v) == "function" then
+				v()
+			else
+				clearInterval(v)
+			end
+		end
+	end
+	Unloader[name]=nil
+	if OnClock[name] then
+		OnClock[name]=nil
+	end
+	return true
+end
+
+function LoadModule(name,path)
+	local chunk,e = loadfile(path.."/"..name..".lua")
+	local loop, Unloadfuncs
+	if chunk then
+		setfenv(chunk,getfenv())
+		Comm[name], loop, OnClock[name], Unloadfuncs, Perm[name] = chunk()
+		Unloader[name]={}
+		if loop then
+			for _,v in ipairs(loop) do
+				pcall(v.f)
+				table.insert(Unloader[name],setInterval(v.tid,v.f))
+			end
+			--local e,err = pcall(loop)
+			--if e==false then
+				--p(e,err)
+			--end
+		end
+		for _,v in pairs(Unloadfuncs) do
+			table.insert(Unloader[name],v)
+		end
+		print("Module "..name.." sucessfully loaded")
+		Modulepath[name] = path
+		return true
+	else
+		print("Error loading module "..name.." raised error:\n"..e)
+		return false
+	end
+end
 ---------------Lua Eval
+
+local function Reboot(message)
+	client:stop()
+	Clock:stop()
+	for k,v in pairs(Unloader) do
+		print(k,v)
+	end
+		os.execute("lxterminal -e bash -c \"luvit BotV3.lua;exec bash\"")
+end
 
 local sandbox = setmetatable({
 	client = client,
@@ -47,7 +109,7 @@ local sandbox = setmetatable({
 	Load = LoadModule,
 	Unload = UnloadModule,
 	sleep = sleep,
-	RESTART = RESTART
+	Reboot = Reboot
 	},
 	{ __index = _G }
 )
@@ -110,59 +172,7 @@ local function exec(msg, arg)
 end
 -----------------------------------
 
-local Comm, Perm = {}, {}
 
-local Modulepath={}
-local Unloader = {}
-local OnClock = {}
-
-function UnloadModule(name)
-	Comm[name] = nil
-	Perm[name] = nil
-	if Unloader[name] then
-		for _,v in ipairs(Unloader[name]) do
-			if type(v) == "function" then
-				v()
-			else
-				clearInterval(v)
-			end
-		end
-	end
-	Unloader[name]=nil
-	if OnClock[name] then
-		OnClock[name]=nil
-	end
-	return true
-end
-
-function LoadModule(name,path)
-	local chunk,e = loadfile(path.."/"..name..".lua")
-	local loop, Unloadfuncs
-	if chunk then
-		setfenv(chunk,getfenv())
-		Comm[name], loop, OnClock[name], Unloadfuncs, Perm[name] = chunk()
-		Unloader[name]={}
-		if loop then
-			for _,v in ipairs(loop) do
-				pcall(v.f)
-				table.insert(Unloader[name],setInterval(v.tid,v.f))
-			end
-			--local e,err = pcall(loop)
-			--if e==false then
-				--p(e,err)
-			--end
-		end
-		for _,v in pairs(Unloadfuncs) do
-			table.insert(Unloader[name],v)
-		end
-		print("Module "..name.." sucessfully loaded")
-		Modulepath[name] = path
-		return true
-	else
-		print("Error loading module "..name.." raised error:\n"..e)
-		return false
-	end
-end
 
 
 function ClearMessages(time, Command, Message)
@@ -285,7 +295,7 @@ end
 
 Clock:on('sec', function(tid)
 	for _, v in pairs(OnClock) do
-		pcall(v,tid,client,discordia)
+		pcall(v, tid, client, discordia)
 	end
 end)
 
