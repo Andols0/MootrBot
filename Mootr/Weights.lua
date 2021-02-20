@@ -265,7 +265,7 @@ end
 local Weights = {
     ["Zora’s Fountain Open"] = {
         name = "zora_fountain",
-        def = "open",
+        def = "closed",
         options = {
             "closed",
             "adult",
@@ -551,7 +551,6 @@ local Weights = {
             useless = 0,
             balanced = 0,
             bingo = 0,
-            scrubs = 0,
             tournament = 0,
         },
         def = "scrubs",
