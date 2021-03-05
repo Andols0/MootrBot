@@ -480,21 +480,7 @@ local Weights = {
     },
     ["Add In Some/All/Few Cutscenes"] = {
         categories = {
-            no_escape_sequence = {
-                options = {
-                    "true",
-                    "false"
-                },
-                def = "true"
-            },
             no_guard_stealth = {
-                options = {
-                    "true",
-                    "false"
-                },
-                def = "true"
-            },
-            no_epona_race = {
                 options = {
                     "true",
                     "false"
@@ -807,12 +793,20 @@ local Static = {
         ["false"] = 0
     },
     logic_no_night_tokens_without_suns_song  = {
-        ["true"] = 50.0,
-        ["false"] = 50.0--100?
+        ["true"] = 0,
+        ["false"] = 100 --I think so, not knowing if it's on or not can really fuck up logic.
     },
     no_collectible_hearts = {
         ["false"] = 100,
         ["true"] = 0
+    },
+    no_escape_sequence = {
+        ["true"] = 100,
+        ["false"] = 0
+    },
+    no_epona_race = {
+        ["true"] = 100,
+        ["false"] = 0
     },
     skip_some_minigame_phases  = {
         ["true"] = 100.0,
