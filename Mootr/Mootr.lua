@@ -122,7 +122,7 @@ Mootr.resetvotes = {help = "Resets the votes",
 }
 Mootr.generate = {help = "Generates the MoOTR seed",
     f = function(message)
-        local Info = Mootr.weight.f(message, true)
+        local Info = Mootr.weight.f(message)
         message:reply("Weightsfile generated\nStarting settings file")
         CreatePlando(message, Info)
     end
