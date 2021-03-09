@@ -117,7 +117,6 @@ Mootr.resetvotes = {help = "Resets the votes",
                 Message:addReaction(No)
             end
         end
-        ClearMessages(5000,message)
     end
 }
 Mootr.generate = {help = "Generates the MoOTR seed",
