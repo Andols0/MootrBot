@@ -19,6 +19,7 @@ local firstload = false
 client:on('ready', function()
     if not firstload then
         LoadModule("Mootr","Mootr")
+		LoadModule("Multi", "Multi")
         print('Logged in as '.. client.user.username)
         Clock:start()
         firstload = true
