@@ -56,11 +56,11 @@ end
 
 local function Save()
     Mootrsettings.Time = os.time()
-    fs.writeFileSync("./Mootr/settings.json", json.encode(Mootrsettings))
+    fs.writeFileSync("./Mootr/settings.json", json.encode(Mootrsettings,{indent = true}))
 end
 
 local function SaveSeeds()
-    fs.writeFileSync("./Mootr/seeds.json", json.encode(Seeds))
+    fs.writeFileSync("./Mootr/seeds.json", json.encode(Seeds,{indent = true}))
 end
 
 local function ResolveEmoji(message, Emoji)
@@ -178,10 +178,10 @@ Mootr.weight = {help = "Generates the weights file",
         --message.member:send {
         if not SkipPost then
             message:reply {
-                file = {"weights.json",(json.encode(ConvertedWeights)) }
+                file = {"weights.json",(json.encode(ConvertedWeights,{indent = true})) }
             }
         end
-        fs.writeFileSync(RandoRando, json.encode(ConvertedWeights))
+        fs.writeFileSync(RandoRando, json.encode(ConvertedWeights,{indent = true}))
         return Info
    end
 }
