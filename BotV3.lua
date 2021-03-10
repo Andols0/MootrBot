@@ -268,8 +268,7 @@ end
 
 function sendhelp(message,arg)
     local Msg = ""
-    print("helparg"..arg)
-	if arg == "" then
+	if not arg then
 		Msg = "Command categories:\n"
 		for k,v in pairs(Comm) do
 			if type(v) == "table" then
@@ -279,6 +278,7 @@ function sendhelp(message,arg)
 			end
 		end
 	elseif Comm[arg] then
+		print("helparg "..arg)
 		Msg = ""
 		if Comm[arg].info then
 			Msg = Msg.."General information for this module:\n\t"..Comm[arg].info.."\n"
