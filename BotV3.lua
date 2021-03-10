@@ -164,11 +164,13 @@ local function exec(msg, arg)
     lines = table.concat(lines, '\n')
 
     if #lines > 1990 then -- truncate long messages
-        lines = lines:sub(1, 1990)
+		for i = 1, #lines, 1990 do
+			msg:reply(code(lines:sub(i, i + 1990)))
     end
-
+		return
+	else
     return msg:reply(code(lines))
-
+	end
 end
 -----------------------------------
 
