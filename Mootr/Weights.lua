@@ -111,6 +111,10 @@ local function Keys(self, votes)
                 Tot = Tot - Vot.SanNo
                 SyYes = 0
             end
+            if Vot.SanN and Vot.SyN then
+                Tot = 1
+                Mix = 1
+            end
             Keyes = {
                 vanilla = Mix/Tot*100/2,
                 keysanity = SanYes/Tot*100,
@@ -182,9 +186,6 @@ local function GanonKey(self, votes)
     }
 
     Ganonweights.Num = Ganonweights.Num + 1
-    if Ganonweights.Num == 8 then
-        p(GKey)
-    end
     return "shuffle_ganon_bosskey", GKey
 end
 
