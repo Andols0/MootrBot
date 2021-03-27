@@ -12,8 +12,8 @@ local json = require("json")
 local setInterval, clearInterval = timer.setInterval, timer.clearInterva
 
 local LoadModule, UnloadModule, sendhelp
-
-local Settings = {}
+local Succ, Raw = pcall(json.decode, fs.readFileSync("./settings.json"))
+local Settings =  Succ and Raw or {EnabledModules = {}}
 
 local firstload = false
 client:on('ready', function()
@@ -30,7 +30,7 @@ end)
 ------------------------Utils
 local function Save() --Save settings
     Settings.Time = os.time()
-    fs.writeFileSync("./Settings.json",json.encode(Settings))
+    fs.writeFileSync("./Settings.json",json.encode(Settings, {indent = true}))
 end
 
 local function Fullnametoid(guild,text)
@@ -40,7 +40,7 @@ local function Fullnametoid(guild,text)
 	end
 end
 
-local Comm, Perm = {}, {}
+local Comm, Perm, Mod = {}, {}, {}
 
 local Modulepath={}
 local Unloader = {}
@@ -90,7 +90,7 @@ function LoadModule(name,path)
 		return true
 	else
 		print("Error loading module "..name.." raised error:\n"..e)
-		return false
+		return false, "Error loading module "..name.." raised error:\n"..e
 	end
 end
 ---------------Lua Eval
@@ -190,6 +190,19 @@ end
 
 local DefaultPrefix = "½"
 
+local function PermissionCheck(message, module, cmd)
+	if Perm[module] then
+		local ok, err = Perm[module].Check(message,cmd)
+		if not(ok) and err then
+			return ok, message:reply(err)
+		else
+			return ok
+		end
+	else
+		return true
+	end
+end
+
 client:on('messageCreate', function(message)
     if message.author.bot then return end
     if message.author == client.user then return end
@@ -212,26 +225,26 @@ client:on('messageCreate', function(message)
 			--return message:reply("Pong!")
 		end
         for module, v in pairs(Comm) do
+			if Settings.EnabledModules[module] and Settings.EnabledModules[module][message.guild.id] then
             if type(v)=="table" then
 				if v[cmd] and v.help then
-					local ok = (IsGod or Owner) or not(Perm[module]) or Perm[module].Check(message,cmd)
-					if ok == true then
+						if (IsGod or Owner) or PermissionCheck(message, cmd) then
                         p(Fullname.." is running command", cmd.." with args", arg)
                         local e, err = pcall(v[cmd].f, message, arg)
                         if e == false then
                             p(e,err)
                         end
                         return
-					else
-						print("NOPE")
-						if type(ok) == "string" then
-							return message:reply(ok)
 						end
 					end
                 end
             end
         end
-
+		if IsGod or Owner then
+			if Mod[cmd] then
+				return Mod[cmd](message,arg)
+			end
+		end
         if IsGod then -- My playground
 			if Comm[cmd] then
 				Comm[cmd](message,arg)
@@ -247,23 +260,36 @@ end)
 function Comm.reload(message,name)  --Module reload
 	UnloadModule(name)
 	if Modulepath[name] then
-		if LoadModule(name,Modulepath[name]) then
+		local res, err = LoadModule(name,Modulepath[name])
+		if res then
 			message:reply("Sucessfull")
 		else
-			message:reply("Error on load")
+			message:reply("Error on load```\n"..err.."```")
 		end
 	else
 		message:reply("Invalid module name")
 	end
 end
 
+function Mod.enablemodule(message, module)
+	if Comm[module] then
+		Settings.EnabledModules[module][message.guild.id] = true
+		message:reply("Enabled module: "..module)
+	end
+	Save()
+end
+
+function Mod.disablemodule(message, module)
+	if Comm[module] then
+		Settings.EnabledModules[module][message.guild.id] = nil
+		message:reply("Disabled module: "..module)
+	end
+	Save()
+end
 -------------------------- Playground
 function Comm.test(message, arg)
 	print("Test", message, arg)
 end
-
-
-
 
 
 function sendhelp(message,arg)
@@ -301,7 +327,6 @@ Clock:on('sec', function(tid)
 		pcall(v, tid, client, discordia)
 	end
 end)
-
 
 
 client:run("Bot "..Token)
