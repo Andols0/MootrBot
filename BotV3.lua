@@ -9,6 +9,9 @@ local Clock = discordia.Clock()
 local timer = require('timer')
 local sleep = timer.sleep
 local json = require("json")
+local slash = require("discordia-slash")
+slash.constructor()
+client:useSlashCommands()
 local setInterval, clearInterval = timer.setInterval, timer.clearInterva
 
 local LoadModule, UnloadModule, sendhelp
@@ -16,7 +19,7 @@ local Succ, Raw = pcall(json.decode, fs.readFileSync("./settings.json"))
 local Settings =  Succ and Raw or {EnabledModules = {}}
 
 local firstload = false
-client:on('ready', function()
+client:on('slashCommandsReady', function()
     if not firstload then
         LoadModule("Mootr","Mootr")
 		LoadModule("Multi", "Multi")
@@ -24,7 +27,7 @@ client:on('ready', function()
         Clock:start()
         firstload = true
 	end
-	log = client:getGuild("331016187443937290"):getChannel("506945145623805990")
+	log = client:getChannel("506945145623805990")
 end)
 
 ------------------------Utils
@@ -65,12 +68,45 @@ function UnloadModule(name)
 	return true
 end
 
+local GuildSlashCommands = {}
+local ModuleSlashCommands= {}
+
+local function LoadSlashCommand(name)
+	for _, cmd in ipairs(ModuleSlashCommands[name]) do
+		for Id, _ in pairs(Settings.EnabledModules[name]) do
+			GuildSlashCommands[name][Id] = GuildSlashCommands[name][Id] or {}
+			local guild = client:getGuild(Id)
+			local success, scom = pcall(guild.slashCommand, guild, cmd:finish())
+			if success then
+				table.insert(GuildSlashCommands[name][Id], scom)
+			else
+				print("Error loading slash command in module "..name.." raised error:\n"..scom)
+			end
+		end
+	end
+end
+
 function LoadModule(name,path)
 	local chunk,e = loadfile(path.."/"..name..".lua")
-	local loop, Unloadfuncs
+	local Commands, loop, Unloadfuncs
 	if chunk then
+		Settings.EnabledModules[name] = Settings.EnabledModules[name] or  {}
 		setfenv(chunk,getfenv())
-		Comm[name], loop, OnClock[name], Unloadfuncs, Perm[name] = chunk()
+		Commands, loop, OnClock[name], Unloadfuncs, Perm[name] = chunk()
+		Comm[name] = {}
+		GuildSlashCommands[name] = {}
+		ModuleSlashCommands[name] = {}
+		for Command, CommData in pairs(Commands) do
+			if CommData.slash then
+				table.insert(ModuleSlashCommands[name], CommData.cmd)
+				CommData.f = function(message)
+					message:reply("Error.\nThis is a slash `/` command. Can't be called this way.")
+				end
+			end
+			Comm[name][Command] = CommData
+		end
+		LoadSlashCommand(name)
+		--Comm[name]
 		Unloader[name]={}
 		if loop then
 			for _,v in ipairs(loop) do
@@ -110,7 +146,8 @@ local sandbox = setmetatable({
 	Load = LoadModule,
 	Unload = UnloadModule,
 	sleep = sleep,
-	Reboot = Reboot
+	Reboot = Reboot,
+	slash = slash
 	},
 	{ __index = _G }
 )
@@ -167,10 +204,10 @@ local function exec(msg, arg)
     if #lines > 1990 then -- truncate long messages
 		for i = 1, #lines, 1990 do
 			msg:reply(code(lines:sub(i, i + 1990)))
-    end
+		end
 		return
 	else
-    return msg:reply(code(lines))
+		return msg:reply(code(lines))
 	end
 end
 -----------------------------------
@@ -226,19 +263,19 @@ client:on('messageCreate', function(message)
 		end
         for module, v in pairs(Comm) do
 			if Settings.EnabledModules[module] and Settings.EnabledModules[module][message.guild.id] then
-            if type(v)=="table" then
-				if v[cmd] and v.help then
+				if type(v)=="table" then
+					if v[cmd] and v.help then
 						if (IsGod or Owner) or PermissionCheck(message, cmd) then
-                        p(Fullname.." is running command", cmd.." with args", arg)
-                        local e, err = pcall(v[cmd].f, message, arg)
-                        if e == false then
-                            p(e,err)
-                        end
-                        return
+							p(Fullname.." is running command", cmd.." with args", arg)
+							local e, err = pcall(v[cmd].f, message, arg)
+							if e == false then
+								p(e,err)
+							end
+							return
 						end
 					end
-                end
-            end
+				end
+			end
         end
 		if IsGod or Owner then
 			if Mod[cmd] then
@@ -274,14 +311,20 @@ end
 function Mod.enablemodule(message, module)
 	if Comm[module] then
 		Settings.EnabledModules[module][message.guild.id] = true
+		LoadSlashCommand(module)
 		message:reply("Enabled module: "..module)
 	end
 	Save()
 end
 
 function Mod.disablemodule(message, module)
+	local Id = message.guild.id
 	if Comm[module] then
-		Settings.EnabledModules[module][message.guild.id] = nil
+		Settings.EnabledModules[module][Id] = nil
+		for _, scom in ipairs(GuildSlashCommands[module][Id]) do
+			scom:delete()
+		end
+		GuildSlashCommands[module][Id] = nil
 		message:reply("Disabled module: "..module)
 	end
 	Save()
