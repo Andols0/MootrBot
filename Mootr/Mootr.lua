@@ -8,9 +8,12 @@ local uv = require("uv")
 local WS = require("coro-websocket")
 local Windows = package.config:sub(1,1)=="\\"
 local discordia = require("discordia")
+local slash = require("discordia-slash")
+local optionType = slash.enums.optionType
 
 local CreatePlando, gd
 
+local  Perm = {}
 local Weights, Constants = dofile("./Mootr/Weights.lua")
 local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons
 
@@ -95,43 +98,73 @@ local function VotesToWheight(Votes)
 end
 
 
-Mootr.resetvotes = {help = "Resets the votes",
-    f = function(message)
-        local Settings = Mootrsettings[message.guild.id]
+Mootr.resetvotes = {help = "Resets votes in the voting channel",
+    slash = true,
+    cmd = slash.new("resetvotes", "Resets votes in the voting channel")
+}
+local function resetvotes(interaction)
+    local Settings = Mootrsettings[interaction.guild.id]
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
-            message:reply("You need to set the voting channel")
+        interaction:reply("You need to set a voting channel")
         end
-        local Channel = message.guild:getChannel(Settings.channel)
+    local Channel = interaction.guild:getChannel(Settings.channel)
         local Messages = Channel:getMessages()
-        message:addReaction("👍")
+    interaction:ack()
+
         for _, Message in pairs(Messages) do
-            if not(Settings.ignore[Message.id] or Message == message) then
+        if not(Settings.ignore[Message.id]) then
                 Message:clearReactions()
             end
         end
-        local Yes = ResolveEmoji(message, Settings.Yes)
-        local No = ResolveEmoji(message, Settings.No)
+    local Yes = ResolveEmoji(interaction, Settings.Yes)
+    local No = ResolveEmoji(interaction, Settings.No)
         for _, Message in pairs(Messages) do
-            if not(Settings.ignore[Message.id] or Message == message) then
+        if not(Settings.ignore[Message.id]) then
                 Message:addReaction(Yes)
                 Message:addReaction(No)
             end
         end
+    interaction:followUp("👍")
     end
-}
-Mootr.generate = {help = "Generates the MoOTR seed",
-    f = function(message)
-        local Info = Mootr.weight.f(message)
-        message:reply("Weightsfile generated\nStarting settings file")
-        CreatePlando(message, Info)
-    end
-}
 
+Mootr.resetvotes.cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
+    local access = Perm.Check(ia, cmd.name)
+    if access ~= true then
+        return ia:reply(access, true)
+    end
+    pcall(resetvotes, ia, perms, cmd)
+end)
+
+Mootr.generate = {help = "Generates the MoOTR seed",
+    slash = true,
+    cmd = slash.new("generate", "Generate a seed"),
+}
+local function generate(ia,params)
+    local showwheights
+            showwheights = params.normal.weight
+        local Info = Mootr.weight.f(ia, not(showwheights))
+        ia:reply("Weightsfile generated\nStarting settings file")
+end
+
+do
+    local _cmd = Mootr.generate.cmd
+
+    --_cmd:option("Lock", "Locks voting", optionType.boolean)
+	local normal = _cmd:suboption("Normal", "Generate a regular seed")
+    normal:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+    _cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
+        local access = Perm.Check(ia, cmd.name)
+        if true then return ia:reply("Test tested sucessfully") end
+        if access ~= true then
+            return ia:reply(access, true)
+        end
+        pcall(generate, ia, perms, cmd)
+    end)
+end
 Mootr.weight = {help = "Generates the weights file",
-    f = function(message, SkipPost)
-        local Settings = Mootrsettings[message.guild.id]
+    f = function(mia, SkipPost, overwrite) -- mia = "message interactions"
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
-            message:reply("You need to set the voting channel")
+            mia:reply("You need to set a voting channel")
         end
         local Channel = client:getChannel(Settings.channel)
         local Messages = Channel:getMessages()
@@ -139,7 +172,7 @@ Mootr.weight = {help = "Generates the weights file",
         local Info = {Yes = 0, No = 0, Max = 0, Cat = ""}
         print("READ VOTES")
         for _, Message in pairs(Messages) do
-            if not(Settings.ignore[Message.id]) and not(Message == message) then
+            if not(Settings.ignore[Message.id]) and not(Message == mia) then
                 local SettingName = Message.content:match("__%*%*(.-)%*%*__") or Message.content:match("%*%*__(.-)__%*%*") or Message.content
                 Votes[SettingName] = {Yes = 0, No = 0, Tot = 0}
                 --print(SettingName)
@@ -177,7 +210,7 @@ Mootr.weight = {help = "Generates the weights file",
         --Printtable(ConvertedWeights)
         --message.member:send {
         if not SkipPost then
-            message:reply {
+            mia.channel:send {
                 file = {"weights.json",(json.encode(ConvertedWeights,{indent = true})) }
             }
         end
@@ -187,7 +220,7 @@ Mootr.weight = {help = "Generates the weights file",
 }
 
 
-local function CreatePatch(message, Info)
+local function CreatePatch(interaction, Info)
     local Patchstderr = uv.new_pipe(false)
     local randolog = ""
     local time = os.time()
@@ -197,33 +230,33 @@ local function CreatePatch(message, Info)
         args = {"OoTRandomizer.py"},
     },
     function(code) -- on exit
-        print("PATCH EXIT", message)
+        print("PATCH EXIT", interaction)
         if code == 0 then
             coroutine.wrap(function()
                 fs.writeFileSync(Patchcwd.."/Roms/Log.txt", randolog)
                 local file = randolog:match("Created patchfile at: .+[/\\](.-)%.zpf")
                 p(file)
                 table.insert(Seeds.Seed,file)
-                Info.Roller = message.member.name
+                Info.Roller = interaction.member.name
                 Seeds.Info[file] = Info
                 SaveSeeds()
                 local Filepath = SeedFolder..file..".zpf"
                 --print(Filepath)
-                message.member:send{
+                interaction.member:send{
                     file = Filepath
                 }
-                message:reply("Seed generated and sent. You can also use ½publish to send it to the public channel.")
+                interaction:followUp("Seed generated and sent. You can also use /publish to send it to the public channel.")
             end)()
         else
             coroutine.wrap(function()
-                message.member:send("Gen FAILED tell Andols")
+                interaction.member:send("Gen FAILED tell Andols")
             end)()
             --if randolog:match(".*(junk).*") then
                 --print("HEEEJ") --Add triforcehunt stuff here
             --end
         end
         coroutine.wrap(function()
-            message.member:send("Time taken: "..os.time()-time)
+            interaction.member:send("Time taken: "..os.time()-time)
         end)()
         print("exit code", code)
     end)
@@ -239,7 +272,7 @@ local function CreatePatch(message, Info)
       end)
 end
 
-function CreatePlando(message, Info)
+function CreatePlando(interaction, Info)
     local plandostderr = uv.new_pipe(false)
     uv.spawn(Python, {
         stdio = {0, 1, plandostderr},
@@ -248,9 +281,9 @@ function CreatePlando(message, Info)
     }, function(code) -- exit function
         if code == 0 then
             coroutine.wrap(function()
-                message:reply("Settings file generated\nStarting randomizer")
+                interaction:followUp("Settings file generated\nStarting randomizer")
             end)()
-            CreatePatch(message, Info)
+            CreatePatch(interaction, Info)
         end
     end)
 
@@ -368,11 +401,16 @@ Mootr.ping = {help = "pong",
 }
 
 Mootr.publish = {help = "Publish the seed to the public channel",
-    f = function(message)
+    slash = true,
+    cmd = slash.new("publish", "Publish the seed to the public channel")
+}
+
+local function publish(interaction)
         --print("Start publish")
-        local Settings = SettingsExists(message)
+    interaction:ack()
+    local Settings = SettingsExists(interaction)
         if not(Settings) or (Settings and not(Settings.public)) then
-            return message:reply("You need to set a public channel")
+        return interaction:reply("You need to set a public channel")
         end
         local Seed = Seeds.Seed[#Seeds.Seed]
         local Hash = json.decode(fs.readFileSync(SeedFolder..Seed.."_Spoiler.json")).file_hash
@@ -403,16 +441,23 @@ Mootr.publish = {help = "Publish the seed to the public channel",
         Publishtemplate.fields[4].value = Info.No
         Publishtemplate.fields[5].value = Info.Cat
         --print("Filled template")
-        message.guild:getChannel(Settings.public):send {
+    interaction.guild:getChannel(Settings.public):send {
             embed = Publishtemplate,
             files = {
                 SeedFolder..Seed..".zpf",
                 Hashfile
             }
         }
+    interaction:followUp("Seed Published")
         --print("Message sent")
     end
-}
+Mootr.publish.cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
+    local access = Perm.Check(ia, cmd.name)
+    if access ~= true then
+        return ia:reply(access, true)
+    end
+    pcall(publish, ia, perms, cmd)
+end)
 
 Mootr.sneaky = {help = "Sends a PM with the latest generated seed",
     f = function(message)
@@ -450,17 +495,29 @@ local function RacetimeSocket(message,options, Seed, Settings)
 
 end
 
-Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
-    f = function(message, arg)
-        local Settings = SettingsExists(message)
+local function Raceroom(ia, params)
+    local Settings = SettingsExists(ia)
         if not(Settings) or (not(Settings) and not(Settings.public)) then
-            return message:reply("You need to set a public channel")
+        return ia:reply("You need to set a public channel")
         end
-        message:addReaction("👀")
-        local options = WS.parseUrl("wss://racetime.gg/ws/race/"..arg)
-        coroutine.wrap(RacetimeSocket)(message, options, Seeds.Seed[#Seeds.Seed], Settings)
+    ia:reply("👀")
+    local options = WS.parseUrl("wss://racetime.gg/ws/race/"..params.roomname)
+    coroutine.wrap(RacetimeSocket)(ia, options, Seeds.Seed[#Seeds.Seed], Settings)
     end
+
+Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
+    slash = true,
+    cmd = slash.new("raceroom", "Set the raceroom for automatic spoiler log posting")
 }
+Mootr.raceroom.cmd:option("roomname", "The roomname of the racetime room", optionType.string, true)
+
+Mootr.raceroom.cmd:callback(function(ia, params, cmd) --interaction, parameters, command
+    local access = Perm.Check(ia, cmd.name)
+    if access ~= true then
+        return ia:reply(access, true)
+    end
+    p(pcall(Raceroom, ia, params, cmd))
+end)
 
 Mootr.setemotes = {help = "Set the emotes used for voting.",
     f = function(message)
@@ -500,7 +557,7 @@ Mootr.getemotes = {help = "Show what emotes are used",
 }
 
 local Banned = [[Hi!
-The allmighty Mimms has banned ``%s`` this week.
+The allmighty Mimmz has removed ``%s`` from voting this week.
 Your vote has been removed to show this.
 Feel free to vote on another setting.
 And remember to stay cute!
@@ -615,11 +672,13 @@ local Whitelist = {
     "697070228529479711"  --Discord Mod
 }
 
-local  Perm = {}
 
 function Perm.Check(message, cmd)
-    print("Checkperm")
+    print("Checkperm", cmd)
     if cmd == "ping" then
+        return true
+    end
+    if message.member.id == message.client.owner.id then
         return true
     end
     for _,v in pairs(Whitelist) do
