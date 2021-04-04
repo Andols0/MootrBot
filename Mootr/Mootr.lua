@@ -1,6 +1,5 @@
 local fs = require("fs")
 local json = require("json")
-local Mootr = {help = "It's MOOTR ZOOTR"}
 local timer = require('timer')
 local Mootrsettings = json.decode(fs.readFileSync("./Mootr/settings.json")) or {}
 local Seeds = json.decode(fs.readFileSync("./Mootr/seeds.json")) or {Seed = {}, Info = {}}
@@ -14,6 +13,8 @@ local optionType = slash.enums.optionType
 local CreatePlando, gd
 
 local  Perm = {}
+local Mootr = {help = "It's MOOTR ZOOTR"}
+
 local Weights, Constants = dofile("./Mootr/Weights.lua")
 local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons
 
@@ -104,28 +105,28 @@ Mootr.resetvotes = {help = "Resets votes in the voting channel",
 }
 local function resetvotes(interaction)
     local Settings = Mootrsettings[interaction.guild.id]
-        if not(Settings) or (not(Settings) and not(Settings.channel)) then
+    if not(Settings) or (not(Settings) and not(Settings.channel)) then
         interaction:reply("You need to set a voting channel")
-        end
+    end
     local Channel = interaction.guild:getChannel(Settings.channel)
-        local Messages = Channel:getMessages()
+    local Messages = Channel:getMessages()
     interaction:ack()
 
-        for _, Message in pairs(Messages) do
+    for _, Message in pairs(Messages) do
         if not(Settings.ignore[Message.id]) then
-                Message:clearReactions()
-            end
+            Message:clearReactions()
         end
+    end
     local Yes = ResolveEmoji(interaction, Settings.Yes)
     local No = ResolveEmoji(interaction, Settings.No)
-        for _, Message in pairs(Messages) do
+    for _, Message in pairs(Messages) do
         if not(Settings.ignore[Message.id]) then
-                Message:addReaction(Yes)
-                Message:addReaction(No)
-            end
+            Message:addReaction(Yes)
+            Message:addReaction(No)
         end
-    interaction:followUp("👍")
     end
+    interaction:followUp("👍")
+end
 
 Mootr.resetvotes.cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
     local access = Perm.Check(ia, cmd.name)
@@ -141,9 +142,18 @@ Mootr.generate = {help = "Generates the MoOTR seed",
 }
 local function generate(ia,params)
     local showwheights
-            showwheights = params.normal.weight
-        local Info = Mootr.weight.f(ia, not(showwheights))
-        ia:reply("Weightsfile generated\nStarting settings file")
+    p(params)
+    local mode
+    if params.diving then
+        mode = "Dungeon_dive"
+        showwheights = params.diving.weight
+    else
+        showwheights = params.normal.weight
+    end
+    local Info = Mootr.weight.f(ia, not(showwheights))
+    ia:reply("Weightsfile generated\nStarting settings file")
+    print("Mode", mode)
+    CreatePlando(ia, Info, mode)
 end
 
 do
@@ -152,9 +162,22 @@ do
     --_cmd:option("Lock", "Locks voting", optionType.boolean)
 	local normal = _cmd:suboption("Normal", "Generate a regular seed")
     normal:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+	--normal:option("Lock", "Locks voting", optionType.boolean)
+
+    --local special = _cmd:group("special", "Other game modes")
+	local bingo = _cmd:suboption("Bingo", "Generate a bingo seed")
+	bingo:option("URL", "A link to the bingo board", optionType.string, true)
+	bingo:option("Lock", "Locks voting", optionType.boolean)
+
+	local dive = _cmd:suboption("Diving", "Generate a dungeon diving seed")
+    dive:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+	--dive:option("Lock", "Locks voting", optionType.boolean)
+
+    --[[local blitz = special:suboption("blitz", "Generate a blitz seed")
+	blitz:option("Lock", "Locks voting", optionType.boolean)
+    ]]
     _cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
         local access = Perm.Check(ia, cmd.name)
-        if true then return ia:reply("Test tested sucessfully") end
         if access ~= true then
             return ia:reply(access, true)
         end
@@ -163,6 +186,7 @@ do
 end
 Mootr.weight = {help = "Generates the weights file",
     f = function(mia, SkipPost, overwrite) -- mia = "message interactions"
+        local Settings = Mootrsettings["389836194516566018"]--[mia.guild.id]
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
             mia:reply("You need to set a voting channel")
         end
@@ -203,6 +227,17 @@ Mootr.weight = {help = "Generates the weights file",
             ConvertedWeights[k] = {}
             for q,w in pairs(v) do
                 ConvertedWeights[k][q] = w
+            end
+        end
+        if overwrite then
+            for setting, value in pairs(overwrite) do
+                for k, _ in pairs(ConvertedWeights[setting]) do
+                    if k == value then
+                        ConvertedWeights[setting] = 100
+                    else
+                        ConvertedWeights[setting] = 0
+                    end
+                end
             end
         end
         --message:reply("```json\n"..json.encode(VotesToWheight(Votes)).."```")
@@ -251,9 +286,6 @@ local function CreatePatch(interaction, Info)
             coroutine.wrap(function()
                 interaction.member:send("Gen FAILED tell Andols")
             end)()
-            --if randolog:match(".*(junk).*") then
-                --print("HEEEJ") --Add triforcehunt stuff here
-            --end
         end
         coroutine.wrap(function()
             interaction.member:send("Time taken: "..os.time()-time)
@@ -272,17 +304,18 @@ local function CreatePatch(interaction, Info)
       end)
 end
 
-function CreatePlando(interaction, Info)
+function CreatePlando(interaction, Info, Mode)
     local plandostderr = uv.new_pipe(false)
     uv.spawn(Python, {
         stdio = {0, 1, plandostderr},
         cwd = Plandocwd,
-        args = {"PlandoRandomSettings.py"},
+        args = {"PlandoRandomSettings.py", Mode},
     }, function(code) -- exit function
         if code == 0 then
             coroutine.wrap(function()
                 interaction:followUp("Settings file generated\nStarting randomizer")
             end)()
+           -- if true then return end
             CreatePatch(interaction, Info)
         end
     end)
@@ -406,51 +439,51 @@ Mootr.publish = {help = "Publish the seed to the public channel",
 }
 
 local function publish(interaction)
-        --print("Start publish")
+    --print("Start publish")
     interaction:ack()
     local Settings = SettingsExists(interaction)
-        if not(Settings) or (Settings and not(Settings.public)) then
+    if not(Settings) or (Settings and not(Settings.public)) then
         return interaction:reply("You need to set a public channel")
-        end
-        local Seed = Seeds.Seed[#Seeds.Seed]
-        local Hash = json.decode(fs.readFileSync(SeedFolder..Seed.."_Spoiler.json")).file_hash
-        --p("Hash", Hash)
-        local Info = Seeds.Info[Seed]
-        if Windows then --The graphic library can't load into this enviroment on windows so do this in a separate file.
-            local command = 'F:\\Dropbox\\Lua\\Mootr\\Mootr\\Image.lua "%s" "%s" "%s" "%s" "%s"'
-            os.execute(command:format(Hash[1], Hash[2], Hash[3], Hash[4], Hash[5]))
-        else
-            local image = gd.createFromPng(Icons.."Background.png")
-            local Hash1 = gd.createFromPng(Icons..Hash[1]..".png")
-            local Hash2 = gd.createFromPng(Icons..Hash[2]..".png")
-            local Hash3 = gd.createFromPng(Icons..Hash[3]..".png")
-            local Hash4 = gd.createFromPng(Icons..Hash[4]..".png")
-            local Hash5 = gd.createFromPng(Icons..Hash[5]..".png")
-            image:copy(Hash1,8, 3, 0, 0, 64, 64)
-            image:copy(Hash2, 88, 3, 0, 0, 64, 64)
-            image:copy(Hash3, 168, 3, 0, 0, 64, 64)
-            image:copy(Hash4, 248, 3, 0, 0, 64, 64)
-            image:copy(Hash5, 322, 3, 0, 0, 64, 64)
-            image:png(Hashfile,100)
-        end
-        --print("Created image")
-        Publishtemplate.timestamp = discordia.Date():toISO('T', 'Z')
-        Publishtemplate.fields[1].value = Info.Roller
-        Publishtemplate.fields[2].value = Info.Yes + Info.No
-        Publishtemplate.fields[3].value = Info.Yes
-        Publishtemplate.fields[4].value = Info.No
-        Publishtemplate.fields[5].value = Info.Cat
-        --print("Filled template")
-    interaction.guild:getChannel(Settings.public):send {
-            embed = Publishtemplate,
-            files = {
-                SeedFolder..Seed..".zpf",
-                Hashfile
-            }
-        }
-    interaction:followUp("Seed Published")
-        --print("Message sent")
     end
+    local Seed = Seeds.Seed[#Seeds.Seed]
+    local Hash = json.decode(fs.readFileSync(SeedFolder..Seed.."_Spoiler.json")).file_hash
+    --p("Hash", Hash)
+    local Info = Seeds.Info[Seed]
+    if Windows then --The graphic library can't load into this enviroment on windows so do this in a separate file.
+        local command = 'F:\\Dropbox\\Lua\\Mootr\\Mootr\\Image.lua "%s" "%s" "%s" "%s" "%s"'
+        os.execute(command:format(Hash[1], Hash[2], Hash[3], Hash[4], Hash[5]))
+    else
+        local image = gd.createFromPng(Icons.."Background.png")
+        local Hash1 = gd.createFromPng(Icons..Hash[1]..".png")
+        local Hash2 = gd.createFromPng(Icons..Hash[2]..".png")
+        local Hash3 = gd.createFromPng(Icons..Hash[3]..".png")
+        local Hash4 = gd.createFromPng(Icons..Hash[4]..".png")
+        local Hash5 = gd.createFromPng(Icons..Hash[5]..".png")
+        image:copy(Hash1,8, 3, 0, 0, 64, 64)
+        image:copy(Hash2, 88, 3, 0, 0, 64, 64)
+        image:copy(Hash3, 168, 3, 0, 0, 64, 64)
+        image:copy(Hash4, 248, 3, 0, 0, 64, 64)
+        image:copy(Hash5, 322, 3, 0, 0, 64, 64)
+        image:png(Hashfile,100)
+    end
+    --print("Created image")
+    Publishtemplate.timestamp = discordia.Date():toISO('T', 'Z')
+    Publishtemplate.fields[1].value = Info.Roller
+    Publishtemplate.fields[2].value = Info.Yes + Info.No
+    Publishtemplate.fields[3].value = Info.Yes
+    Publishtemplate.fields[4].value = Info.No
+    Publishtemplate.fields[5].value = Info.Cat
+    --print("Filled template")
+    interaction.guild:getChannel(Settings.public):send {
+        embed = Publishtemplate,
+        files = {
+            SeedFolder..Seed..".zpf",
+            Hashfile
+        }
+    }
+    interaction:followUp("Seed Published")
+    --print("Message sent")
+end
 Mootr.publish.cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
     local access = Perm.Check(ia, cmd.name)
     if access ~= true then
@@ -497,13 +530,13 @@ end
 
 local function Raceroom(ia, params)
     local Settings = SettingsExists(ia)
-        if not(Settings) or (not(Settings) and not(Settings.public)) then
+    if not(Settings) or (not(Settings) and not(Settings.public)) then
         return ia:reply("You need to set a public channel")
-        end
+    end
     ia:reply("👀")
     local options = WS.parseUrl("wss://racetime.gg/ws/race/"..params.roomname)
     coroutine.wrap(RacetimeSocket)(ia, options, Seeds.Seed[#Seeds.Seed], Settings)
-    end
+end
 
 Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
     slash = true,
