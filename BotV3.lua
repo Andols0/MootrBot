@@ -33,7 +33,7 @@ end)
 ------------------------Utils
 local function Save() --Save settings
     Settings.Time = os.time()
-    fs.writeFileSync("./Settings.json",json.encode(Settings, {indent = true}))
+    fs.writeFileSync("./settings.json",json.encode(Settings, {indent = true}))
 end
 
 --[[local function Fullnametoid(guild,text)
