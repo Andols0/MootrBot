@@ -36,6 +36,19 @@ do --Set some paths
     Icons = Root.."Mootr/Images/"
 end
 
+local CBs = {}
+
+local function SlashCallback(...)
+    coroutine.wrap(function(ia, perms, cmd) --interaction, parameters, command
+        local access = Perm.Check(ia, cmd.name)
+        if access ~= true then
+            return ia:reply(access, true)
+        end
+        local res, err = pcall(CBs[cmd.name], ia, perms, cmd)
+        if not res then p(err) end
+    end)(...)
+end
+
 local function SettingsExists(message)
     if not Mootrsettings[message.guild.id] then
         Mootrsettings[message.guild.id] = { ignore = {} }
@@ -103,7 +116,7 @@ Mootr.resetvotes = {help = "Resets votes in the voting channel",
     slash = true,
     cmd = slash.new("resetvotes", "Resets votes in the voting channel")
 }
-local function resetvotes(interaction)
+function CBs.resetvotes(interaction, params)
     local Settings = Mootrsettings[interaction.guild.id]
     if not(Settings) or (not(Settings) and not(Settings.channel)) then
         interaction:reply("You need to set a voting channel")
@@ -128,19 +141,13 @@ local function resetvotes(interaction)
     interaction:followUp("👍")
 end
 
-Mootr.resetvotes.cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
-    local access = Perm.Check(ia, cmd.name)
-    if access ~= true then
-        return ia:reply(access, true)
-    end
-    pcall(resetvotes, ia, perms, cmd)
-end)
+Mootr.resetvotes.cmd:callback(SlashCallback)
 
 Mootr.generate = {help = "Generates the MoOTR seed",
     slash = true,
     cmd = slash.new("generate", "Generate a seed"),
 }
-local function generate(ia,params)
+function CBs.generate(ia,params)
     local showwheights
     p(params)
     local mode
@@ -165,24 +172,15 @@ do
 	--normal:option("Lock", "Locks voting", optionType.boolean)
 
     --local special = _cmd:group("special", "Other game modes")
-	local bingo = _cmd:suboption("Bingo", "Generate a bingo seed")
-	bingo:option("URL", "A link to the bingo board", optionType.string, true)
-	bingo:option("Lock", "Locks voting", optionType.boolean)
+	--local bingo = _cmd:suboption("Bingo", "Generate a bingo seed")
+	--bingo:option("URL", "A link to the bingo board", optionType.string, true)
+	--bingo:option("Lock", "Locks voting", optionType.boolean)
 
 	local dive = _cmd:suboption("Diving", "Generate a dungeon diving seed")
     dive:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
 	--dive:option("Lock", "Locks voting", optionType.boolean)
 
-    --[[local blitz = special:suboption("blitz", "Generate a blitz seed")
-	blitz:option("Lock", "Locks voting", optionType.boolean)
-    ]]
-    _cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
-        local access = Perm.Check(ia, cmd.name)
-        if access ~= true then
-            return ia:reply(access, true)
-        end
-        pcall(generate, ia, perms, cmd)
-    end)
+    _cmd:callback(SlashCallback)
 end
 Mootr.weight = {help = "Generates the weights file",
     f = function(mia, SkipPost, overwrite) -- mia = "message interactions"
@@ -438,8 +436,7 @@ Mootr.publish = {help = "Publish the seed to the public channel",
     cmd = slash.new("publish", "Publish the seed to the public channel")
 }
 
-local function publish(interaction)
-    --print("Start publish")
+function CBs.publish(interaction)
     interaction:ack()
     local Settings = SettingsExists(interaction)
     if not(Settings) or (Settings and not(Settings.public)) then
@@ -484,13 +481,7 @@ local function publish(interaction)
     interaction:followUp("Seed Published")
     --print("Message sent")
 end
-Mootr.publish.cmd:callback(function(ia, perms, cmd) --interaction, parameters, command
-    local access = Perm.Check(ia, cmd.name)
-    if access ~= true then
-        return ia:reply(access, true)
-    end
-    pcall(publish, ia, perms, cmd)
-end)
+Mootr.publish.cmd:callback(SlashCallback)
 
 Mootr.sneaky = {help = "Sends a PM with the latest generated seed",
     f = function(message)
@@ -528,7 +519,7 @@ local function RacetimeSocket(message,options, Seed, Settings)
 
 end
 
-local function Raceroom(ia, params)
+function CBs.raceroom(ia, params)
     local Settings = SettingsExists(ia)
     if not(Settings) or (not(Settings) and not(Settings.public)) then
         return ia:reply("You need to set a public channel")
@@ -544,13 +535,7 @@ Mootr.raceroom = {help = "Set the raceroom for automatic spoiler log posting",
 }
 Mootr.raceroom.cmd:option("roomname", "The roomname of the racetime room", optionType.string, true)
 
-Mootr.raceroom.cmd:callback(function(ia, params, cmd) --interaction, parameters, command
-    local access = Perm.Check(ia, cmd.name)
-    if access ~= true then
-        return ia:reply(access, true)
-    end
-    p(pcall(Raceroom, ia, params, cmd))
-end)
+Mootr.raceroom.cmd:callback(SlashCallback)
 
 Mootr.setemotes = {help = "Set the emotes used for voting.",
     f = function(message)
