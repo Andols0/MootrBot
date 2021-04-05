@@ -16,7 +16,7 @@ local  Perm = {}
 local Mootr = {help = "It's MOOTR ZOOTR"}
 
 local Weights, Constants = dofile("./Mootr/Weights.lua")
-local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons
+local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons, Blitzcwd
 
 do --Set some paths
     if Windows then
@@ -30,6 +30,7 @@ do --Set some paths
 
     Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
     Patchcwd = Root.."Rando/OoT-Randomizer"
+    Blitzcwd = Root.."Rando/Blitz/OoT-Randomizer"
     RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
     SeedFolder = Root.."Rando/Seeds/"
     Hashfile = Root.."Rando/Hash.png"
@@ -92,7 +93,6 @@ end
 local function VotesToWheight(Votes)
     local Weight = {}
     local Name, Weighing
-    print("CONVERT")
     for k,v in pairs(Votes) do
         --print(k)
         if Weights[k] then
@@ -110,12 +110,25 @@ local function VotesToWheight(Votes)
     end
     return Weight
 end
-
+--I should make this dynamic instead of hardcoded. But ill change that when needed.
+local BlitzNo = {"740977204095090778", "805810753482391643", "805810773276360705", "805810788571807814", "805810810835435560", "805810821888081930", "805810838534357072", "805810846076502066", "769182188330942505", "769182353078616094", "769182365724966922", "769182378404347904"}
+local Blitz6 = "769182336112656384"
+local BlitzYes = {"805810444970229771", "769182336112656384", "769181734041550890"}
 
 Mootr.resetvotes = {help = "Resets votes in the voting channel",
     slash = true,
     cmd = slash.new("resetvotes", "Resets votes in the voting channel")
 }
+
+Mootr.resetvotes.cmd:option("mode", "asdasd",optionType.string):choices({
+    name = "Autoset Blitz settings",
+    value = "blitz"
+}--, {
+   -- name = "Bingo",
+   -- value = "bingo"
+--}
+)
+
 function CBs.resetvotes(interaction, params)
     local Settings = Mootrsettings[interaction.guild.id]
     if not(Settings) or (not(Settings) and not(Settings.channel)) then
@@ -138,6 +151,24 @@ function CBs.resetvotes(interaction, params)
             Message:addReaction(No)
         end
     end
+    if params.mode == "blitz" then
+        local FNo = ResolveEmoji(interaction, Settings.FN)
+        local FYes = ResolveEmoji(interaction, Settings.FY)
+        for _, v in pairs(BlitzNo) do
+            Channel:getMessage(v):addReaction(FNo)
+        end
+        for _, v in pairs(BlitzYes) do
+            Channel:getMessage(v):addReaction(FYes)
+        end
+        timer.sleep(10000)
+        Channel:getMessage(Blitz6):addReaction("6️⃣")
+        local HintMsg = Channel:getMessage("769181734041550890")
+        HintMsg:addReaction("🇧")
+        HintMsg:addReaction("🇱")
+        HintMsg:addReaction("🇮")
+        HintMsg:addReaction("🇹")
+        HintMsg:addReaction("🇿")
+    end
     interaction:followUp("👍")
 end
 
@@ -150,14 +181,21 @@ Mootr.generate = {help = "Generates the MoOTR seed",
 function CBs.generate(ia,params)
     local showwheights
     p(params)
-    local mode
+    local mode, overwrite
     if params.diving then
         mode = "Dungeon_dive"
         showwheights = params.diving.weight
+    elseif params.blitz then
+        mode = "blitz"
+        showwheights = params.blitz.weight
+        overwrite = {
+            hint_dist = "blitz",
+            bridge_rewards = 6
+        }
     else
         showwheights = params.normal.weight
     end
-    local Info = Mootr.weight.f(ia, not(showwheights))
+    local Info = Mootr.weight.f(ia, not(showwheights), overwrite)
     ia:reply("Weightsfile generated\nStarting settings file")
     print("Mode", mode)
     CreatePlando(ia, Info, mode)
@@ -180,8 +218,11 @@ do
     dive:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
 	--dive:option("Lock", "Locks voting", optionType.boolean)
 
+    local blitz = _cmd:suboption("blitz", "Generate a blitz seed")
+    blitz:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
     _cmd:callback(SlashCallback)
 end
+
 Mootr.weight = {help = "Generates the weights file",
     f = function(mia, SkipPost, overwrite) -- mia = "message interactions"
         local Settings = Mootrsettings["389836194516566018"]--[mia.guild.id]
@@ -231,9 +272,9 @@ Mootr.weight = {help = "Generates the weights file",
             for setting, value in pairs(overwrite) do
                 for k, _ in pairs(ConvertedWeights[setting]) do
                     if k == value then
-                        ConvertedWeights[setting] = 100
+                        ConvertedWeights[setting][k] = 100
                     else
-                        ConvertedWeights[setting] = 0
+                        ConvertedWeights[setting][k] = 0
                     end
                 end
             end
@@ -253,13 +294,14 @@ Mootr.weight = {help = "Generates the weights file",
 }
 
 
-local function CreatePatch(interaction, Info)
+local function CreatePatch(interaction, Info, Mode)
     local Patchstderr = uv.new_pipe(false)
     local randolog = ""
     local time = os.time()
+    local Cwd = Mode == "blitz" and Blitzcwd or Patchcwd
     uv.spawn(Python,{
         stdio = {0, 1, Patchstderr},
-        cwd = Patchcwd,
+        cwd = Cwd,
         args = {"OoTRandomizer.py"},
     },
     function(code) -- on exit
@@ -314,7 +356,7 @@ function CreatePlando(interaction, Info, Mode)
                 interaction:followUp("Settings file generated\nStarting randomizer")
             end)()
            -- if true then return end
-            CreatePatch(interaction, Info)
+            CreatePatch(interaction, Info, Mode)
         end
     end)
 
@@ -584,7 +626,6 @@ And remember to stay cute!
 local function ClearReactions(Reaction, Setting)
     for _,member in pairs(Reaction:getUsers()) do
         Reaction:delete(member.id)
-        print("Remove")
         if not(member.bot) then
             print("Message")
             member:send(Banned:format(Setting))

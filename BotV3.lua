@@ -36,12 +36,12 @@ local function Save() --Save settings
     fs.writeFileSync("./Settings.json",json.encode(Settings, {indent = true}))
 end
 
-local function Fullnametoid(guild,text)
+--[[local function Fullnametoid(guild,text)
 	local user = guild.members:find(function(m) return m.tag == text end)
 	if user then
 		return user.id
 	end
-end
+end]] --Something not currently used
 
 local Comm, Perm, Mod = {}, {}, {}
 
@@ -87,7 +87,7 @@ local function LoadSlashCommand(name)
 end
 
 function LoadModule(name,path)
-	local chunk,e = loadfile(path.."/"..name..".lua")
+	local chunk, e = loadfile(path.."/"..name..".lua")
 	local Commands, loop, Unloadfuncs
 	if chunk then
 		Settings.EnabledModules[name] = Settings.EnabledModules[name] or  {}
@@ -131,7 +131,7 @@ function LoadModule(name,path)
 end
 ---------------Lua Eval
 
-local function Reboot(message)
+local function Reboot()
 	client:stop()
 	Clock:stop()
 	for k,v in pairs(Unloader) do
@@ -211,9 +211,6 @@ local function exec(msg, arg)
 	end
 end
 -----------------------------------
-
-
-
 
 function ClearMessages(time, Command, Message)
 	sleep(time)

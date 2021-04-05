@@ -539,6 +539,7 @@ local Weights = {
             balanced = 0,
             bingo = 0,
             tournament = 0,
+            blitz = 0
         },
         def = "scrubs",
         f = Multichoice
