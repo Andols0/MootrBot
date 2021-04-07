@@ -316,13 +316,15 @@ end
 
 function Mod.disablemodule(message, module)
 	local Id = message.guild.id
-	if Comm[module] then
+	if Comm[module] and GuildSlashCommands[module] then
 		Settings.EnabledModules[module][Id] = nil
 		for _, scom in ipairs(GuildSlashCommands[module][Id]) do
 			scom:delete()
 		end
 		GuildSlashCommands[module][Id] = nil
 		message:reply("Disabled module: "..module)
+	else
+		message:reply("No module found or enabled.")
 	end
 	Save()
 end
