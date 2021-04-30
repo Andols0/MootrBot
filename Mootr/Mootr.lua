@@ -18,7 +18,7 @@ local  Perm = {}
 local Mootr = {help = "It's MOOTR ZOOTR"}
 
 local Weights, Constants = dofile("./Mootr/Weights.lua")
-local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons, Blitzcwd
+local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons, Blitzcwd, Multicwd
 
 do --Set some paths
     if Windows then
@@ -33,6 +33,7 @@ do --Set some paths
     Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
     Patchcwd = Root.."Rando/OoT-Randomizer"
     Blitzcwd = Root.."Rando/Blitz/OoT-Randomizer"
+    Multicwd = Root.."Rando/Multi/OoT-Randomizer"
     RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
     SeedFolder = Root.."Rando/Seeds/"
     Hashfile = Root.."Rando/Hash.png"
@@ -176,6 +177,75 @@ end
 
 Mootr.resetvotes.cmd:callback(SlashCallback)
 
+local function OverwriteMulti(Plando)
+    local Settings = Plando.settings
+    Settings.starting_items = {
+        "ocarina",
+        "farores_wind",
+        "lens"
+    }
+    Settings.start_with_consumables = true
+    Settings.start_with_rupees = true
+    Settings.free_scarecrow = true
+    Settings.hint_dist = "mw2"
+    Settings.skip_child_zelda =  true
+    table.insert(Settings.disabled_locations, "Kak 40 Gold Skulltula Reward")
+    table.insert(Settings.disabled_locations, "Kak 50 Gold Skulltula Reward")
+    if Settings.tokensanity ~= "off" then
+        Settings.tokensanity = "dungeons"
+    end
+
+    if Settings.zora_fountain == "adult" then
+        Settings.zora_fountain = "open"
+    end
+
+    if Settings.shopsanity ~= "off" then
+        Settings.shopsanity = 4
+    end
+
+    if Settings.starting_age == "child" then
+        Settings.starting_age = "adult"
+    else
+        Settings.starting_age = "random"
+    end
+
+    if Settings.shuffle_ganon_bosskey == "lacs_dungeons" then
+        Settings.lacs_condition = "dungeons"
+        Settings.lacs_rewards = 8
+    elseif Settings.shuffle_ganon_bosskey == "lacs_medallions" then
+        Settings.lacs_condition = "medallions"
+        Settings.lacs_medallions = 6
+    end
+    Settings.shuffle_ganon_bosskey = "on_lacs"
+
+    Settings.shuffle_ocarinas = false
+    Settings.shuffle_weird_egg = false
+    Settings.shuffle_kokiri_sword = true
+    Settings.shuffle_beans = false
+
+    Settings.enhance_map_compass = true
+    Settings.shuffle_mapcompass = "startwith"
+
+    --Some of the not voded shuffles.
+    Settings.open_kakariko = "open"
+    Settings.complete_mask_quest = false
+    Settings.chicken_count_random = false
+    Settings.chicken_count = 7
+    Settings.junk_ice_traps = "off"
+    Settings.starting_hearts = 3
+    
+    Settings.starting_songs = nil --In case the script gives us free items.
+    Settings.starting_equipment = nil
+
+    for i = #Settings.disabled_locations, 1 , -1 do
+        if Settings.disabled_locations[i] == "DMC Deku Scrub" then --This is a thing in the MW
+            table.remove(Settings.disabled_locations, i)
+        end
+    end
+
+    return json.encode(Plando)
+end
+
 Mootr.generate = {help = "Generates the MoOTR seed",
     slash = true,
     cmd = slash.new("generate", "Generate a seed"),
@@ -183,7 +253,7 @@ Mootr.generate = {help = "Generates the MoOTR seed",
 function CBs.generate(ia,params)
     local showwheights
     p(params)
-    local mode, overwrite
+    local mode, overwrite, overwritepost
     if params.diving then
         mode = "Dungeon_dive"
         showwheights = params.diving.weight
@@ -194,13 +264,17 @@ function CBs.generate(ia,params)
             hint_dist = "blitz",
             bridge_rewards = 6
         }
+    elseif params.multiworld then
+        mode = "multi"
+        showwheights = params.multiworld.weight
+        overwritepost = OverwriteMulti
     else
         showwheights = params.normal.weight
     end
     local Info = Mootr.weight.f(ia, not(showwheights), overwrite)
     ia:reply("Weightsfile generated\nStarting settings file")
     print("Mode", mode)
-    CreatePlando(ia, Info, mode)
+    CreatePlando(ia, Info, mode, overwritepost)
 end
 
 do
@@ -222,12 +296,16 @@ do
 
     local blitz = _cmd:suboption("blitz", "Generate a blitz seed")
     blitz:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+	--blitz:option("Lock", "Locks voting", optionType.boolean)
+
+    local multi = _cmd:suboption("multiworld", "Generate a 3player multiworld seed with Tournuament presets")
+    multi:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
     _cmd:callback(SlashCallback)
 end
 
 Mootr.weight = {help = "Generates the weights file",
     f = function(mia, SkipPost, overwrite) -- mia = "message interactions"
-        local Settings = Mootrsettings["389836194516566018"]--[mia.guild.id]
+        local Settings = Mootrsettings[mia.guild.id] --["389836194516566018"]
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
             mia:reply("You need to set a voting channel")
         end
@@ -300,7 +378,7 @@ local function CreatePatch(interaction, Info, Mode)
     local Patchstderr = uv.new_pipe(false)
     local randolog = ""
     local time = os.time()
-    local Cwd = Mode == "blitz" and Blitzcwd or Patchcwd
+    local Cwd = Mode == "blitz" and Blitzcwd or Mode == "multi" and Multicwd or Patchcwd
     uv.spawn(Python,{
         stdio = {0, 1, Patchstderr},
         cwd = Cwd,
@@ -346,7 +424,7 @@ local function CreatePatch(interaction, Info, Mode)
       end)
 end
 
-function CreatePlando(interaction, Info, Mode)
+function CreatePlando(interaction, Info, Mode, Overwrite)
     local plandostderr = uv.new_pipe(false)
     uv.spawn(Python, {
         stdio = {0, 1, plandostderr},
@@ -354,6 +432,9 @@ function CreatePlando(interaction, Info, Mode)
         args = {"PlandoRandomSettings.py", Mode},
     }, function(code) -- exit function
         if code == 0 then
+            if Overwrite then
+                fs.writeFileSync(Plandocwd.."/blind_random_settings.json", Overwrite(json.decode(fs.readFileSync(Plandocwd.."/blind_random_settings.json"))),{indent = true})
+            end
             coroutine.wrap(function()
                 interaction:followUp("Settings file generated\nStarting randomizer")
             end)()
