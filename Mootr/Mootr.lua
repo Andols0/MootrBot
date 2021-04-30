@@ -389,13 +389,14 @@ local function CreatePatch(interaction, Info, Mode)
         if code == 0 then
             coroutine.wrap(function()
                 fs.writeFileSync(Patchcwd.."/Roms/Log.txt", randolog)
-                local file = randolog:match("Created patchfile at: .+[/\\](.-)%.zpf")
+                local file, filetype = randolog:match("Created patchfile at: .+[/\\](.-)(%.zpfz?)")
                 p(file)
                 table.insert(Seeds.Seed,file)
                 Info.Roller = interaction.member.name
+                Info.filetype = filetype
                 Seeds.Info[file] = Info
                 SaveSeeds()
-                local Filepath = SeedFolder..file..".zpf"
+                local Filepath = SeedFolder..file..filetype
                 --print(Filepath)
                 interaction.member:send{
                     file = Filepath
@@ -599,7 +600,7 @@ function CBs.publish(interaction)
     interaction.guild:getChannel(Settings.public):send {
         embed = Publishtemplate,
         files = {
-            SeedFolder..Seed..".zpf",
+            SeedFolder..Seed..Info.filetype,
             Hashfile
         }
     }
@@ -610,8 +611,9 @@ Mootr.publish.cmd:callback(SlashCallback)
 
 Mootr.sneaky = {help = "Sends a PM with the latest generated seed",
     f = function(message)
+        local Seed = Seeds.Seed[#Seeds.Seed]
         message.member:send {
-            file = SeedFolder..Seeds.Seed[#Seeds.Seed]..".zpf"
+            file = SeedFolder..Seed..Seeds.Info[Seed].filetype
         }
     end
 }
