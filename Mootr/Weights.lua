@@ -872,11 +872,11 @@ local Static = {
         complete  = 0
     },
     starting_tod  = {
-        default  = 0,
+        default  = 100,
         random  = 0,
         sunrise  = 0,
         morning  = 0,
-        noon  = 100,
+        noon  = 0,
         afternoon  = 0,
         sunset  = 0,
         evening  = 0,
