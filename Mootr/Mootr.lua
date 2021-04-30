@@ -1,8 +1,10 @@
 local fs = require("fs")
 local json = require("json")
 local timer = require('timer')
-local Mootrsettings = json.decode(fs.readFileSync("./Mootr/settings.json")) or {}
-local Seeds = json.decode(fs.readFileSync("./Mootr/seeds.json")) or {Seed = {}, Info = {}}
+local Succ, Raw = pcall(json.decode, fs.readFileSync("./Mootr/settings.json"))
+local Mootrsettings =  Succ and Raw or {}
+Succ, Raw = pcall(json.decode, fs.readFileSync("./Mootr/seeds.json"))
+local Seeds =  Succ and Raw or {Seed = {}, Info = {}}
 local uv = require("uv")
 local WS = require("coro-websocket")
 local Windows = package.config:sub(1,1)=="\\"
