@@ -34,10 +34,28 @@ local Ignored = {
     create_spoiler = true,
     triforce_hunt = true,
     all_reachable = true,
-    triforce_goal_per_world = true
+    triforce_goal_per_world = true,
+    reachable_locations = true,
+    misc_hints = true --Not used on the generator branch
 }
 
-local function LoadSpoiler(Data, ID)
+local NoRoman = [[
+Non roman branch detected. Assuming following settings.
+Mix entrance pools = off
+Decouple Entrances = off
+]]
+local ToOld = [[
+Error
+Spoiler log needs to be generated with randomizer version 6 or later.
+]]
+local ToNew = [[
+Warning
+This log is generated with a newer version of the randomizer (this script was last updated for 6.0.41).
+All settings might not be supported.
+]]
+
+
+local function LoadSpoiler(Data, ID, message)
     local Log = Logs[ID]
     local settings = {}
     local tricks = {}
@@ -45,6 +63,33 @@ local function LoadSpoiler(Data, ID)
     local items = {}
     local songs = {}
     local equipment = {}
+    local Major, Minor, Build, Name = Data[":version"]:match("(%d*)%.(%d*)%.(%d*)%s(.*)")
+    Major, Minor, Build = tonumber(Major), tonumber(Minor), tonumber(Build)
+    if Major < 6 then
+        return false, message:reply(ToOld)
+    elseif Major == 6 and (Minor > 0 or Build > 41) then
+        message:reply(ToNew)
+    end
+    if not Name:find("R%-") then
+        message:reply(NoRoman)
+        Data.settings.mix_entrance_pools = "off"
+        Data.settings.decouple_entrances = false
+    end
+    if Data.settings.shuffle_ganon_bosskey == "on_lacs" then --Compat in a settings name change.
+        local lacs_condition = Data.settings.lacs_condition
+        if lacs_condition == "vanilla" then
+            Data.settings.shuffle_ganon_bosskey = "lacs_vanilla"
+        elseif lacs_condition == "stones" then
+            Data.settings.shuffle_ganon_bosskey = "lacs_stones"
+        elseif lacs_condition == "medallions" then
+            Data.settings.shuffle_ganon_bosskey = "lacs_medallions"
+        elseif lacs_condition == "dungeons" then
+            Data.settings.shuffle_ganon_bosskey = "lacs_dungeons"
+        elseif lacs_condition == "tokens" then
+            Data.settings.shuffle_ganon_bosskey = "lacs_tokens"
+        end
+    end
+    Data.settings.lacs_condition = nil
 
     for k,v in pairs(Data.settings) do
         if k == "disabled_locations" then
@@ -77,6 +122,7 @@ local function LoadSpoiler(Data, ID)
     tinsert(Log.Items,items)
     tinsert(Log.Songs,songs)
     tinsert(Log.Equipment,equipment)
+    return true
 end
 
 local function BuildCommon(NameOfStuff)
@@ -146,13 +192,19 @@ Multi.finishmulti = { help = "Finalizes the plandofile",
         --Tricks
         local world_tricks, common_tricks = BuildCategory(Log.Tricks, true)
         for i = 1, #Log.Settings do
-            Plandofile.world_settings["World "..i].allowed_tricks = world_tricks["World "..i]
+            print("World".. i, "Tricks", #world_tricks["World "..i])
+            if #world_tricks["World "..i] > 0 then
+                Plandofile.world_settings["World "..i].allowed_tricks = world_tricks["World "..i]
+            end
         end
         Plandofile.settings.allowed_tricks = common_tricks
         --Disabled locations
         local world_disabled, common_disabled = BuildCategory(Log.Disabled, true)
         for i = 1, #Log.Settings do
-            Plandofile.world_settings["World "..i].disabled_locations = world_disabled["World "..i]
+            print("World".. i, "world_disabled", #world_disabled["World "..i])
+            if #world_disabled["World "..i] > 0 then
+                Plandofile.world_settings["World "..i].disabled_locations = world_disabled["World "..i]
+            end
         end
         Plandofile.settings.disabled_locations = common_disabled
         --Items
@@ -221,9 +273,11 @@ Multi.loadspoiler = { help = "Load in a spoiler.",
         local _, body = http.request("GET",message.attachment.url)
         local Data = json.decode(body)
         Data.settings.USER = message.author.name
-        LoadSpoiler(Data, arg)
-        message:reply("Spoiler log loaded")
-        Save()
+        local success = LoadSpoiler(Data, arg, message)
+        if success then
+            message:reply("Spoiler log loaded")
+            Save()
+        end
     end
 }
 
