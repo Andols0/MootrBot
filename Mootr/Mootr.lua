@@ -222,6 +222,7 @@ local function OverwriteMulti(Plando)
     Settings.shuffle_weird_egg = false
     Settings.shuffle_kokiri_sword = true
     Settings.shuffle_beans = false
+    Settings.shuffle_smallkeys = "dungeon"
 
     Settings.enhance_map_compass = true
     Settings.shuffle_mapcompass = "startwith"
@@ -281,8 +282,8 @@ do
     local _cmd = Mootr.generate.cmd
 
     --_cmd:option("Lock", "Locks voting", optionType.boolean)
-	local normal = _cmd:suboption("Normal", "Generate a regular seed")
-    normal:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+	local normal = _cmd:suboption("normal", "Generate a regular seed")
+    normal:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 	--normal:option("Lock", "Locks voting", optionType.boolean)
 
     --local special = _cmd:group("special", "Other game modes")
@@ -290,16 +291,16 @@ do
 	--bingo:option("URL", "A link to the bingo board", optionType.string, true)
 	--bingo:option("Lock", "Locks voting", optionType.boolean)
 
-	local dive = _cmd:suboption("Diving", "Generate a dungeon diving seed")
-    dive:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+	local dive = _cmd:suboption("diving", "Generate a dungeon diving seed")
+    dive:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 	--dive:option("Lock", "Locks voting", optionType.boolean)
 
     local blitz = _cmd:suboption("blitz", "Generate a blitz seed")
-    blitz:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+    blitz:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 	--blitz:option("Lock", "Locks voting", optionType.boolean)
 
     local multi = _cmd:suboption("multiworld", "Generate a 3player multiworld seed with Tournuament presets")
-    multi:option("Weight", "Publishes the weights file in this channel",optionType.boolean)
+    multi:option("weight", "Publishes the weights file in this channel",optionType.boolean)
     _cmd:callback(SlashCallback)
 end
 
