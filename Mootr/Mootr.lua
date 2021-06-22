@@ -257,20 +257,27 @@ function CBs.generate(ia,params)
     local mode, overwrite, overwritepost
     if params.diving then
         mode = "Dungeon_dive"
-        showwheights = params.diving.weight
     elseif params.blitz then
         mode = "blitz"
-        showwheights = params.blitz.weight
         overwrite = {
             hint_dist = "blitz",
             bridge_rewards = 6
         }
+    elseif params.bingo then
+        mode = "bingo"
+        overwrite = {
+            hint_dist = "bingo",
+            bingosync_url = params.bingo.url
+        }
     elseif params.multiworld then
         mode = "multi"
-        showwheights = params.multiworld.weight
         overwritepost = OverwriteMulti
     else
         showwheights = params.normal.weight
+    end
+    for _, stuff in pairs(params) do --This is silly...
+        local Settings = Mootrsettings[ia.guild.id]
+        showwheights = stuff.weight
     end
     local Info = Mootr.weight.f(ia, not(showwheights), overwrite)
     ia:reply("Weightsfile generated\nStarting settings file")
@@ -287,9 +294,9 @@ do
 	--normal:option("Lock", "Locks voting", optionType.boolean)
 
     --local special = _cmd:group("special", "Other game modes")
-	--local bingo = _cmd:suboption("Bingo", "Generate a bingo seed")
-	--bingo:option("URL", "A link to the bingo board", optionType.string, true)
-	--bingo:option("Lock", "Locks voting", optionType.boolean)
+	local bingo = _cmd:suboption("Bingo", "Generate a bingo seed")
+    bingo:option("url", "A link to the bingo board", optionType.string, true)
+    bingo:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 
 	local dive = _cmd:suboption("diving", "Generate a dungeon diving seed")
     dive:option("weight", "Publishes the weights file in this channel",optionType.boolean)
