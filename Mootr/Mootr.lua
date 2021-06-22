@@ -294,7 +294,7 @@ do
 	--normal:option("Lock", "Locks voting", optionType.boolean)
 
     --local special = _cmd:group("special", "Other game modes")
-	local bingo = _cmd:suboption("Bingo", "Generate a bingo seed")
+	local bingo = _cmd:suboption("bingo", "Generate a bingo seed")
     bingo:option("url", "A link to the bingo board", optionType.string, true)
     bingo:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 
