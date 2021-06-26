@@ -358,12 +358,17 @@ Mootr.weight = {help = "Generates the weights file",
         end
         if overwrite then
             for setting, value in pairs(overwrite) do
+		        if ConvertedWeights[setting] then
                 for k, _ in pairs(ConvertedWeights[setting]) do
                     if k == value then
                         ConvertedWeights[setting][k] = 100
                     else
                         ConvertedWeights[setting][k] = 0
                     end
+                end
+		        else
+			        ConvertedWeights[setting] = {}
+			        ConvertedWeights[setting][value] = 100
                 end
             end
         end
