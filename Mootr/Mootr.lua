@@ -92,6 +92,9 @@ local function ResolveEmoji(message, Emoji)
     end
 end
 
+local function GetName(Message)
+    return Message.content:match("__%*%*(.-)%*%*__") or Message.content:match("%*%*__(.-)__%*%*") or Message.content
+end
 
 local function VotesToWheight(Votes)
     local Weight = {}
@@ -132,6 +135,12 @@ Mootr.resetvotes.cmd:option("mode", "asdasd",optionType.string):choices({
 --}
 )
 
+local function setspecialemojis(message)
+    for _, emoji in pairs(message.mentionedEmojis) do
+        message:addReaction(emoji)
+    end
+end
+
 function CBs.resetvotes(interaction, params)
     local Settings = Mootrsettings[interaction.guild.id]
     if not(Settings) or (not(Settings) and not(Settings.channel)) then
@@ -152,8 +161,13 @@ function CBs.resetvotes(interaction, params)
     local No = ResolveEmoji(interaction, Settings.No)
     for _, Message in pairs(Messages) do
         if not(Settings.ignore[Message.id]) then
-            Message:addReaction(Yes)
-            Message:addReaction(No)
+            local SettingName = GetName(Message)
+            if Weights[SettingName].ids then
+                setspecialemojis(Message)
+            else
+                Message:addReaction(Yes)
+                Message:addReaction(No)
+            end
         end
     end
     if params.mode == "blitz" then
@@ -332,24 +346,35 @@ Mootr.weight = {help = "Generates the weights file",
         print("READ VOTES")
         for _, Message in pairs(Messages) do
             if not(Settings.ignore[Message.id]) and not(Message == mia) then
-                local SettingName = Message.content:match("__%*%*(.-)%*%*__") or Message.content:match("%*%*__(.-)__%*%*") or Message.content
-                Votes[SettingName] = {Yes = 0, No = 0, Tot = 0}
+                local SettingName = GetName(Message)
+                Votes[SettingName] = {Yes = 0, No = 0, Tot = 0, Other = {}}
                 --print(SettingName)
+                local Regular = false
                 local Rule = Votes[SettingName]
                 for _,v in pairs(Message.reactions) do
                     if v.emojiId == Settings.Yes or v.emojiName == Settings.Yes then
+                        Regular = true
                         Info.Yes = Info.Yes + v.count - 1
                         Rule.Yes = Rule.Yes + v.count
                         Rule.Tot = Rule.Tot + v.count
                     elseif v.emojiId == Settings.No or v.emojiName == Settings.No then
+                        Regular = true
                         Info.No = Info.No + v.count - 1
                         Rule.No = Rule.No + v.count
                         Rule.Tot = Rule.Tot + v.count
                     elseif (v.emojiId == Settings.FY or v.emojiName == Settings.FY) and not(Rule.ForceYes) then
+                        Regular = true
                         Rule.ForceYes = true
                     elseif (v.emojiId == Settings.FN or v.emojiName == Settings.FN) and not(Rule.ForceNo) then
+                        Regular = true
                         Rule.ForceNo = true
+                    elseif Regular == false then
+                        Rule.Other[v.emojiId] = v.count
+                        Rule.Tot = Rule.Tot + v.count
                     end
+                end
+                if Regular then
+                    Rule.Other = nil
                 end
                 if Info.Max < Rule.Yes  + Rule.No - 2 then
                     Info.Max = Rule.Yes - 1 + Rule.No -1
@@ -729,13 +754,34 @@ Feel free to vote on another setting.
 And remember to stay cute!
 ]]
 
-local function ClearReactions(Reaction, Setting)
+local function IgnoreID(message, userId)
+    local SettingName = GetName(message)
+    if Weights[SettingName].ids then
+        return userId
+    else
+        return nil
+    end
+end
+
+local function ClearReactions(Reaction, Setting, IDtoignore)
     for _,member in pairs(Reaction:getUsers()) do
-        Reaction:delete(member.id)
-        if not(member.bot) then
-            print("Message")
-            member:send(Banned:format(Setting))
+        if member.id ~= IDtoignore then
+            Reaction:delete(member.id)
+            if not(member.bot) then
+                member:send(Banned:format(GetName(Setting)))
+            end
         end
+    end
+end
+
+local function ResetReactions(Message, Settings)
+    Message:clearReactions()
+    local SettingName = GetName(Message)
+    if Weights[SettingName].ids then
+        setspecialemojis(Message)
+    else
+        Message:addReaction(ResolveEmoji(Message, Settings.Yes))
+        Message:addReaction(ResolveEmoji(Message, Settings.No))
     end
 end
 
@@ -749,7 +795,7 @@ local Reactionfunction = client:on("reactionAdd", function(reaction, userId)
         if Settings.channel == message.channel.id then
             for _,Reaction in pairs(reaction.message.reactions) do
                 if reaction ~= Reaction then
-                    ClearReactions(Reaction, message.content)
+                    ClearReactions(Reaction, message.content, IgnoreID(message, userId))
                 end
             end
         end
@@ -762,25 +808,24 @@ local Reactionfunction2 = client:on("reactionAddUncached", function(channel, mes
         local message = channel:getMessage(messageId)
         return message:removeReaction(ResolveEmoji(message,hash),userId)
     end
-        if Settings.channel == channel.id then
-            if hash == Settings.FN or hash == Settings.FY then
-                local message = channel:getMessage(messageId)
-                for _,Reaction in pairs(message.reactions) do
-                    if hash ~= Reaction.emojiId and hash ~= Reaction.emojiName then
-                        ClearReactions(Reaction, message.content)
-                    end
+    if Settings.channel == channel.id then
+        if hash == Settings.FN or hash == Settings.FY then
+            local message = channel:getMessage(messageId)
+            for _,Reaction in pairs(message.reactions) do
+                if hash ~= Reaction.emojiId and hash ~= Reaction.emojiName then
+                    ClearReactions(Reaction, message.content, IgnoreID(message, userId))
                 end
             end
         end
+    end
 end)
 
 local Reactionfunction3 = client:on("reactionRemove", function(reaction,_)
     local Settings = SettingsExists(reaction.message.channel)
     if reaction.emojiId == Settings.FN or reaction.emojiName == Settings.FN or reaction.emojiId == Settings.FY or reaction.emojiName == Settings.FY then
-        local Message = reaction.message
-        if not(Settings.ignore[Message.id]) then
-            Message:addReaction(ResolveEmoji(Message, Settings.Yes))
-            Message:addReaction(ResolveEmoji(Message, Settings.No))
+        local message = reaction.message
+        if not(Settings.ignore[message.id]) then
+            ResetReactions(message, Settings)
         end
     end
 end)
@@ -790,8 +835,7 @@ local Reactionfunction4 = client:on("reactionRemoveUncached", function(channel, 
     if Settings.channel == channel.id then
         if hash == Settings.FN or hash == Settings.FY then
             local message = channel:getMessage(messageId)
-            message:addReaction(ResolveEmoji(message, Settings.Yes))
-            message:addReaction(ResolveEmoji(message, Settings.No))
+            ResetReactions(message, Settings)
         end
     end
 end)

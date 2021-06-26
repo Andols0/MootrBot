@@ -1,193 +1,3 @@
-local Bridgeweights = {
-    Num = 0
-}
-local function Bridge(self, votes)
-    local type = self.type
-    if Bridgeweights.Num == 5 or Bridgeweights.Num == 0 then
-        Bridgeweights.votes = {
-            open = 0.5,
-            vanilla = 0.5,
-            stones = 0.5,
-            medallions = 0.5,
-            dungeons = 0.5
-        }
-        Bridgeweights.Num = 0
-        Bridgeweights.Force = false
-    end
-    Bridgeweights.votes = Bridgeweights.votes or { open = 0.5, vanilla = 0.5, stones = 0.5, medallions = 0.5, dungeons = 0.5}
-    local Vote = Bridgeweights.votes
-    if votes.ForceYes or (votes.Yes - votes.No >= 5) then
-        for k,_ in pairs(Vote) do
-            if k ~= type then
-                Vote[k] = 0
-            end
-        end
-        Bridgeweights.Force = true
-    elseif votes.ForceNo or (votes.No - votes.Yes >= 5) then
-        Vote[type] = 0
-    elseif not(Bridgeweights.Force) then
-        local Score = votes.Yes - votes.No
-        if Score > 0 then
-            Vote[type] = Score
-        end
-    end
-
-    local Tot = 0
-    for _,v in pairs(Vote) do
-        Tot = Tot + v
-    end
-    local Bridges = {
-        open = Vote.open/Tot*100,
-        vanilla = Vote.vanilla/Tot*100,
-        stones = Vote.stones/Tot*100,
-        medallions = Vote.medallions/Tot*100,
-        dungeons = Vote.dungeons/Tot*100,
-        tokens = 0
-    }
-    Bridgeweights.Num = Bridgeweights.Num + 1
-    return "bridge", Bridges
-end
-
-local Keyweights = {
-    Num = 0,
-}
-
-local function Keys(self, votes)
-    local type = self.type
-    local Keyes
-    if Keyweights.Num == 2 or Keyweights.Num == 0 then
-        Keyweights.votes =  {
-            SyYes = 0,
-            SyNo = 0,
-            SanYes = 0,
-            SanNo = 0
-        }
-        Keyweights.Num = 0
-    end
-    local Vot = Keyweights.votes
-    if type == "Sanity" then
-        Vot.SanYes = votes.Yes
-        Vot.SanNo = votes.No
-        if votes.ForceYes then
-            Vot.SanY = true
-        elseif votes.ForceNo then
-            Vot.SanN = true
-        end
-    elseif type == "Keysy" then
-        Vot.SyYes = votes.Yes
-        Vot.SyNo = votes.No
-        if votes.ForceYes then
-            Vot.SyY = true
-        elseif votes.ForceNo then
-            Vot.SyN = true
-        end
-    end
-
-    if Keyweights.Num == 1 then
-        if Vot.SyYes - Vot.SyNo >= 5 or Vot.SyY then
-            Keyes = {
-                vanilla = 0,
-                keysanity = 0,
-                dungeon = 0,
-                remove = 100
-            }
-        elseif Vot.SanYes - Vot.SanNo >= 5 or Vot.SanY then
-            Keyes = {
-                vanilla = 0,
-                keysanity = 100,
-                dungeon = 0,
-                remove = 0
-            }
-        else
-            local Mix = Vot.SanNo + Vot.SyNo
-            local SanYes = Vot.SyNo + Vot.SanYes
-            local SyYes = Vot.SanNo + Vot.SyYes
-            local Tot = (Mix + SanYes + SyYes)
-            if Vot.SanN then
-                Tot = Tot - Vot.SyNo
-                SanYes = 0
-            end
-            if Vot.SyN then
-                Tot = Tot - Vot.SanNo
-                SyYes = 0
-            end
-            if Vot.SanN and Vot.SyN then
-                Tot = 1
-                Mix = 1
-            end
-            Keyes = {
-                vanilla = Mix/Tot*100/2,
-                keysanity = SanYes/Tot*100,
-                dungeon = Mix/Tot*100/2,
-                remove = SyYes/Tot*100,
-                overworld = 0, --What to do?
-                any_dungeon = 0 --What to do?
-            }
-        end
-    end
-    Keyweights.Num = Keyweights.Num + 1
-
-    return "shuffle_smallkeys" , Keyes
-end
-
-local Ganonweights = {
-    Num = 0,
-}
-
-local function GanonKey(self, votes)
-    local type = self.type
-    if Ganonweights.Num == 8 or Ganonweights.Num == 0  then
-        Ganonweights.votes = {
-            remove = 0.5,
-            vanilla = 0.5,
-            any_dungeon = 0.5,
-            keysanity = 0.5,
-            lacs_vanilla = 0.5,
-            lacs_stones = 0.5,
-            lacs_medallions = 0.5,
-            lacs_dungeons = 0.5,
-        }
-        Ganonweights.Force = false
-        Ganonweights.Num = 0
-    end
-    local Vote = Ganonweights.votes
-    if votes.ForceYes or (votes.Yes - votes.No >= 5) then
-        for k,_ in pairs(Vote) do
-            if k ~= type then
-                Vote[k] = 0
-            end
-        end
-        Ganonweights.Force = true
-    elseif votes.ForceNo or (votes.No - votes.Yes >= 5) then
-        Vote[type] = 0
-    elseif not(Ganonweights.Force) then
-        local Score = votes.Yes - votes.No
-        if Score > 0 then
-            Vote[type] = Score
-        end
-    end
-
-    local Tot = 0
-    for _,v in pairs(Vote) do
-        Tot = Tot + v
-    end
-    local GKey = {
-        remove = Vote.remove/Tot*100,
-        vanilla = Vote.vanilla/Tot*100,
-        any_dungeon = Vote.any_dungeon/Tot*100,
-        keysanity = Vote.keysanity/Tot*100,
-        lacs_vanilla = Vote.lacs_vanilla/Tot*100,
-        lacs_stones = Vote.lacs_stones/Tot*100,
-        lacs_medallions = Vote.lacs_medallions/Tot*100,
-        lacs_dungeons = Vote.lacs_dungeons/Tot*100,
-        dungeon = 0,
-        overworld = 0,
-        lacs_tokens = 0,
-    }
-
-    Ganonweights.Num = Ganonweights.Num + 1
-    return "shuffle_ganon_bosskey", GKey
-end
 
 local function VotesToWheight(votes)
     -- The return is Yes, No
@@ -263,7 +73,117 @@ local function Multicat(self, votes)
     return Weights
 end
 
+local function multivote(self, votes)
+    local Vote = votes.Other
+    local Tot = votes.Tot
+    local IDs = self.ids
+    local fixed = self.fixed or {}
+    local max, almostmax = {value = 0}
+    local Weights = {}
+    local Split = self.split or {}
+    for Id, value in pairs(Vote) do
+        if value > max.value then
+            almostmax = max
+            max = {value = value, id = Id}
+        end
+        --print(Id, IDs[Id])
+        local Name = IDs[Id]
+        if type(Name) == "table" then
+            for i = 1, #Name do
+                Weights[Name[i]] = value/Tot * 100 / (Split[Id] or 1)
+            end
+        else
+            Weights[Name] = value/Tot * 100 / (Split[Id] or 1)
+        end
+    end
+    if max.value >= almostmax.value +5 then
+        for k,_ in pairs(Weights) do
+            local Name = IDs[max.id]
+            if type(Name) == "table" then
+                for i = 1, #Name do
+                    if Name[i] == k then
+                        Weights[k] = 100
+                    else
+                        Weights[k] = 0
+                    end
+                end
+            else
+                if Name == k then
+                    Weights[k] = 100
+                else
+                    Weights[k] = 0
+                end
+            end
+        end
+    end
+    for k,v in pairs(fixed) do
+        Weights[k] = v
+    end
+    --I don't need to do the next part, but will make it cleaner if we have something set as guarantee.
+    for _,v in pairs(IDs) do
+        if type(v) == "table" then
+            for i = 1, #v do
+                if not Weights[v[i]] then
+                    Weights[v[i]] = 0
+                end
+            end
+        else
+            if not Weights[v] then
+                Weights[v] = 0
+            end
+        end
+    end
+    --p(self.name, Weights)
+    return self.name, Weights
+end
 local Weights = {
+    ["Small Keys:"] = {
+        name = "shuffle_smallkeys",
+        f = multivote,
+        ids = {
+            ["844669624074895441"] = {"vanilla", "dungeon"},
+            ["844669624980471829"] = "keysanity",
+            ["844669623672766505"] = "remove",
+        },
+        split = { ["844669624074895441"] = 2}
+    },
+    ["Boss Keys:"] = {
+        name = "shuffle_bosskeys",
+        f = multivote,
+        ids = {
+            ["844669624121557062"] = {"vanilla", "dungeon"},
+            ["844669623516659742"] = "keysanity",
+            ["844669623914725386"] = "remove",
+        },
+        split = { ["844669624121557062"] = 2}
+    },
+    ["Ganon's BK settings:"] = {
+        name = "shuffle_ganon_bosskey",
+        f = multivote,
+        ids = {
+            ["844669623914725386"] = "remove",
+            ["844669623516659742"] = "keysanity",
+            ["844670723989831690"] = "lacs_vanilla",
+            ["844669624792252496"] = "lacs_stones",
+            ["844670723892969522"] = "lacs_medallions",
+            ["844670899696173057"] = "lacs_dungeons",
+            ["844669624121557062"] = "dungeon"
+        }
+    },
+    ["Bridge Settings:"] = {
+        name = "bridge",
+        f = multivote,
+        ids = {
+            ["844672627188826122"] = "open",
+            ["844670723758751775"] = "vanilla",
+            ["844669624792252496"] = "stones",
+            ["844670723892969522"] = "medallions",
+            ["844670899696173057"] = "dungeons"
+        },
+        fixed = {
+            tokens = 0
+        }
+    },
     ["Zora’s Fountain Open"] = {
         name = "zora_fountain",
         def = "closed",
@@ -471,14 +391,6 @@ local Weights = {
         },
         f = Multicat
     },
-    ["Small Key Sanity"] = {
-        type = "Sanity",
-        f = Keys
-    },
-    ["Small Keysy"] = {
-        type = "Keysy",
-        f = Keys
-    },
     ["Add In Some/All/Few Cutscenes"] = {
         categories = {
             no_guard_stealth = {
@@ -585,27 +497,6 @@ local Weights = {
         def = "false",
         f = Multichoice
     },
-
-    ["Rainbow Bridge Req : All Medallions"] = {
-        type = "medallions",
-        f =  Bridge
-    },
-    ["Rainbow Bridge Req : All Dungeons"] = {
-        type = "dungeons",
-        f = Bridge
-    },
-    ["Rainbow Bridge Req : All Stones"] = {
-        type = "stones",
-        f = Bridge
-    },
-    ["Rainbow Bridge Req : Open"] = {
-        type = "open",
-        f = Bridge
-    },
-    ["Rainbow Bridge Req : Vanilla"] = {
-        type = "vanilla",
-        f = Bridge
-    },
     ["Medigoron/Carpet Salesmen Shuffled"] = {
         name = "shuffle_medigoron_carpet_salesman",
         options = {
@@ -614,53 +505,6 @@ local Weights = {
         },
         def = "false",
         f = Multichoice
-    },
-    ["Boss Key Sanity"] = {
-        name = "shuffle_bosskeys",
-        options = {
-            "dungeon",
-            "keysanity"
-        },
-        fixed = {
-            remove = 0,
-            vanilla = 0, --What to do?
-            overworld = 0, --What to do?
-            any_dungeon = 0 --what to do?
-        },
-        def = "dungeon",
-        f = Multichoice
-    },
-    ["Ganon Boss Key Removed (Open Door)"] = {
-        type = "remove",
-        f =  GanonKey
-    },
-    ["Ganon Boss Key In Vanilla location"] = {
-        type = "vanilla",
-        f = GanonKey
-    },
-    ["Ganon Boss Key In Keysanity (Dungeon)"] = {
-        type = "any_dungeon",
-        f = GanonKey
-    },
-    ["Ganon Boss Key In Keysanity (Everywhere)"] = {
-        type = "keysanity",
-        f = GanonKey
-    },
-    ["Ganon Boss Key On LACS: Vanilla"] = {
-        type = "lacs_vanilla",
-        f = GanonKey
-    },
-    ["Ganon Boss Key On LACS: Stones"] = {
-        type = "lacs_stones",
-        f =  GanonKey
-    },
-    ["Ganon Boss Key On LACS: Medallions"] = {
-        type = "lacs_medallions",
-        f = GanonKey
-    },
-    ["Ganon Boss Key On LACS: All Dungeons"] = {
-        type = "lacs_dungeons",
-        f = GanonKey
     },
 }
 
