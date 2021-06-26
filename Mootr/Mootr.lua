@@ -137,6 +137,8 @@ function CBs.resetvotes(interaction, params)
     if not(Settings) or (not(Settings) and not(Settings.channel)) then
         interaction:reply("You need to set a voting channel")
     end
+    Settings.locked = false
+    Save()
     local Channel = interaction.guild:getChannel(Settings.channel)
     local Messages = Channel:getMessages()
     interaction:ack()
@@ -234,7 +236,7 @@ local function OverwriteMulti(Plando)
     Settings.chicken_count = 7
     Settings.junk_ice_traps = "off"
     Settings.starting_hearts = 3
-    
+
     Settings.starting_songs = nil --In case the script gives us free items.
     Settings.starting_equipment = nil
 
@@ -278,6 +280,10 @@ function CBs.generate(ia,params)
     for _, stuff in pairs(params) do --This is silly...
         local Settings = Mootrsettings[ia.guild.id]
         showwheights = stuff.weight
+        if stuff.lock then
+            Settings.locked = true
+            Save()
+        end
     end
     local Info = Mootr.weight.f(ia, not(showwheights), overwrite)
     ia:reply("Weightsfile generated\nStarting settings file")
@@ -290,23 +296,25 @@ do
 
     --_cmd:option("Lock", "Locks voting", optionType.boolean)
 	local normal = _cmd:suboption("normal", "Generate a regular seed")
+    normal:option("lock", "Locks voting", optionType.boolean)
     normal:option("weight", "Publishes the weights file in this channel",optionType.boolean)
-	--normal:option("Lock", "Locks voting", optionType.boolean)
 
     --local special = _cmd:group("special", "Other game modes")
 	local bingo = _cmd:suboption("bingo", "Generate a bingo seed")
     bingo:option("url", "A link to the bingo board", optionType.string, true)
+	bingo:option("lock", "Locks voting", optionType.boolean)
     bingo:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 
 	local dive = _cmd:suboption("diving", "Generate a dungeon diving seed")
+    dive:option("lock", "Locks voting", optionType.boolean)
     dive:option("weight", "Publishes the weights file in this channel",optionType.boolean)
-	--dive:option("Lock", "Locks voting", optionType.boolean)
 
     local blitz = _cmd:suboption("blitz", "Generate a blitz seed")
+	blitz:option("lock", "Locks voting", optionType.boolean)
     blitz:option("weight", "Publishes the weights file in this channel",optionType.boolean)
-	--blitz:option("Lock", "Locks voting", optionType.boolean)
 
     local multi = _cmd:suboption("multiworld", "Generate a 3player multiworld seed with Tournuament presets")
+	multi:option("lock", "Locks voting", optionType.boolean)
     multi:option("weight", "Publishes the weights file in this channel",optionType.boolean)
     _cmd:callback(SlashCallback)
 end
@@ -359,13 +367,13 @@ Mootr.weight = {help = "Generates the weights file",
         if overwrite then
             for setting, value in pairs(overwrite) do
 		        if ConvertedWeights[setting] then
-                for k, _ in pairs(ConvertedWeights[setting]) do
-                    if k == value then
-                        ConvertedWeights[setting][k] = 100
-                    else
-                        ConvertedWeights[setting][k] = 0
-                    end
-                end
+                    for k, _ in pairs(ConvertedWeights[setting]) do
+                        if k == value then
+                            ConvertedWeights[setting][k] = 100
+                        else
+                            ConvertedWeights[setting][k] = 0
+                        end
+			        end
 		        else
 			        ConvertedWeights[setting] = {}
 			        ConvertedWeights[setting][value] = 100
@@ -731,8 +739,11 @@ local function ClearReactions(Reaction, Setting)
     end
 end
 
-local Reactionfunction = client:on("reactionAdd", function(reaction)
+local Reactionfunction = client:on("reactionAdd", function(reaction, userId)
     local Settings = SettingsExists(reaction.message.channel)
+    if Settings.locked then
+        return reaction:delete(userId)
+    end
     if reaction.emojiId == Settings.FN or reaction.emojiName == Settings.FN or reaction.emojiId == Settings.FY or reaction.emojiName == Settings.FY then
         local message = reaction.message
         if Settings.channel == message.channel.id then
@@ -745,8 +756,12 @@ local Reactionfunction = client:on("reactionAdd", function(reaction)
     end
 end)
 
-local Reactionfunction2 = client:on("reactionAddUncached", function(channel, messageId, hash)
+local Reactionfunction2 = client:on("reactionAddUncached", function(channel, messageId, hash, userId)
     local Settings = SettingsExists(channel)
+    if Settings.locked then
+        local message = channel:getMessage(messageId)
+        return message:removeReaction(ResolveEmoji(message,hash),userId)
+    end
         if Settings.channel == channel.id then
             if hash == Settings.FN or hash == Settings.FY then
                 local message = channel:getMessage(messageId)
