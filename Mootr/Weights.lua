@@ -506,6 +506,15 @@ local Weights = {
         def = "false",
         f = Multichoice
     },
+    ["Free zelda"] = {
+        name = "skip_child_zelda",
+        options = {
+            "true",
+            "false"
+        },
+        def = "false",
+        f = Multichoice
+    },
 }
 
 
@@ -625,10 +634,6 @@ local Static = {
      all_reachable  = {
         ["true"] = 100.0,
         ["false"] = 0
-    },
-    skip_child_zelda = { --What to do?
-        ["true"] = 0,
-        ["false"] = 100
     },
     complete_mask_quest = { --What to do?
         ["true"] = 50.0,
