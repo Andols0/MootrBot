@@ -787,12 +787,12 @@ end
 
 local Reactionfunction = client:on("reactionAdd", function(reaction, userId)
     local Settings = SettingsExists(reaction.message.channel)
-    if Settings.locked then
-        return reaction:delete(userId)
-    end
-    if reaction.emojiId == Settings.FN or reaction.emojiName == Settings.FN or reaction.emojiId == Settings.FY or reaction.emojiName == Settings.FY then
-        local message = reaction.message
-        if Settings.channel == message.channel.id then
+    local message = reaction.message
+    if Settings.channel == message.channel.id then
+        if Settings.locked then
+            return reaction:delete(userId)
+        end
+        if reaction.emojiId == Settings.FN or reaction.emojiName == Settings.FN or reaction.emojiId == Settings.FY or reaction.emojiName == Settings.FY then
             for _,Reaction in pairs(reaction.message.reactions) do
                 if reaction ~= Reaction then
                     ClearReactions(Reaction, message.content, IgnoreID(message, userId))
@@ -804,11 +804,11 @@ end)
 
 local Reactionfunction2 = client:on("reactionAddUncached", function(channel, messageId, hash, userId)
     local Settings = SettingsExists(channel)
-    if Settings.locked then
-        local message = channel:getMessage(messageId)
-        return message:removeReaction(ResolveEmoji(message,hash),userId)
-    end
     if Settings.channel == channel.id then
+        if Settings.locked then
+            local message = channel:getMessage(messageId)
+            return message:removeReaction(ResolveEmoji(message,hash),userId)
+        end
         if hash == Settings.FN or hash == Settings.FY then
             local message = channel:getMessage(messageId)
             for _,Reaction in pairs(message.reactions) do
@@ -822,10 +822,12 @@ end)
 
 local Reactionfunction3 = client:on("reactionRemove", function(reaction,_)
     local Settings = SettingsExists(reaction.message.channel)
-    if reaction.emojiId == Settings.FN or reaction.emojiName == Settings.FN or reaction.emojiId == Settings.FY or reaction.emojiName == Settings.FY then
-        local message = reaction.message
-        if not(Settings.ignore[message.id]) then
-            ResetReactions(message, Settings)
+    local message = reaction.message
+    if Settings.channel == message.channel.id then
+        if reaction.emojiId == Settings.FN or reaction.emojiName == Settings.FN or reaction.emojiId == Settings.FY or reaction.emojiName == Settings.FY then
+            if not(Settings.ignore[message.id]) then
+                ResetReactions(message, Settings)
+            end
         end
     end
 end)
