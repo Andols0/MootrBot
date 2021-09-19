@@ -349,32 +349,24 @@ Mootr.weight = {help = "Generates the weights file",
                 local SettingName = GetName(Message)
                 Votes[SettingName] = {Yes = 0, No = 0, Tot = 0, Other = {}}
                 --print(SettingName)
-                local Regular = false
                 local Rule = Votes[SettingName]
                 for _,v in pairs(Message.reactions) do
                     if v.emojiId == Settings.Yes or v.emojiName == Settings.Yes then
-                        Regular = true
                         Info.Yes = Info.Yes + v.count - 1
                         Rule.Yes = Rule.Yes + v.count
                         Rule.Tot = Rule.Tot + v.count
                     elseif v.emojiId == Settings.No or v.emojiName == Settings.No then
-                        Regular = true
                         Info.No = Info.No + v.count - 1
                         Rule.No = Rule.No + v.count
                         Rule.Tot = Rule.Tot + v.count
                     elseif (v.emojiId == Settings.FY or v.emojiName == Settings.FY) and not(Rule.ForceYes) then
-                        Regular = true
                         Rule.ForceYes = true
                     elseif (v.emojiId == Settings.FN or v.emojiName == Settings.FN) and not(Rule.ForceNo) then
-                        Regular = true
                         Rule.ForceNo = true
-                    elseif Regular == false then
+                    else
                         Rule.Other[v.emojiId] = v.count
                         Rule.Tot = Rule.Tot + v.count
                     end
-                end
-                if Regular then
-                    Rule.Other = nil
                 end
                 if Info.Max < Rule.Yes  + Rule.No - 2 then
                     Info.Max = Rule.Yes - 1 + Rule.No -1

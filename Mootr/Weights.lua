@@ -92,7 +92,7 @@ local function multivote(self, votes)
             for i = 1, #Name do
                 Weights[Name[i]] = value/Tot * 100 / (Split[Id] or 1)
             end
-        else
+        elseif Name then --nil check
             Weights[Name] = value/Tot * 100 / (Split[Id] or 1)
         end
     end
