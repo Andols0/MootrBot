@@ -505,20 +505,15 @@ local Weights = {
         },
         def = "false",
         f = Multichoice
-    },
-    ["Free zelda"] = {
-        name = "skip_child_zelda",
-        options = {
-            "true",
-            "false"
-        },
-        def = "false",
-        f = Multichoice
-    },
+    }
 }
 
 
 local Static = {
+    skip_child_zelda = {
+        ["true"] = 80,
+        ["false"] = 0
+    },
     open_kakariko = {
         open = 50, --What to do?
         zelda = 0,
