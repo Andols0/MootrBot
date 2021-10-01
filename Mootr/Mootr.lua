@@ -363,7 +363,7 @@ Mootr.weight = {help = "Generates the weights file",
                         Rule.ForceYes = true
                     elseif (v.emojiId == Settings.FN or v.emojiName == Settings.FN) and not(Rule.ForceNo) then
                         Rule.ForceNo = true
-                    else
+                    elseif v.emojiId then --nil check
                         Rule.Other[v.emojiId] = v.count
                         Rule.Tot = Rule.Tot + v.count
                     end
