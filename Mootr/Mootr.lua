@@ -33,7 +33,7 @@ do --Set some paths
     Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
     Patchcwd = Root.."Rando/OoT-Randomizer"
     Blitzcwd = Root.."Rando/Blitz/OoT-Randomizer"
-    Multicwd = Root.."Rando/Multi/OoT-Randomizer"
+    --Multicwd = Root.."Rando/Multi/OoT-Randomizer"
     RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
     SeedFolder = Root.."Rando/Seeds/"
     Hashfile = Root.."Rando/Hash.png"
@@ -327,9 +327,10 @@ do
 	blitz:option("lock", "Locks voting", optionType.boolean)
     blitz:option("weight", "Publishes the weights file in this channel",optionType.boolean)
 
-    local multi = _cmd:suboption("multiworld", "Generate a 3player multiworld seed with Tournuament presets")
+    --Removing since not usefull at the moment.
+    --[[local multi = _cmd:suboption("multiworld", "Generate a 3player multiworld seed with Tournuament presets")
 	multi:option("lock", "Locks voting", optionType.boolean)
-    multi:option("weight", "Publishes the weights file in this channel",optionType.boolean)
+    multi:option("weight", "Publishes the weights file in this channel",optionType.boolean)]]
     _cmd:callback(SlashCallback)
 end
 
@@ -443,7 +444,10 @@ local function CreatePatch(interaction, Info, Mode)
             end)()
         else
             coroutine.wrap(function()
-                interaction.member:send("Gen FAILED tell Andols")
+                interaction.member:send{
+                    content ="Gen FAILED tell Andols",
+                    file = {"log.txt", randolog}
+                }
             end)()
         end
         coroutine.wrap(function()

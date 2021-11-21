@@ -163,10 +163,10 @@ local Weights = {
         ids = {
             ["844669623914725386"] = "remove",
             ["844669623516659742"] = "keysanity",
-            ["844670723989831690"] = "lacs_vanilla",
-            ["844669624792252496"] = "lacs_stones",
-            ["844670723892969522"] = "lacs_medallions",
-            ["844670899696173057"] = "lacs_dungeons",
+            ["844670723989831690"] = "on_lacs",
+            ["844669624792252496"] = "stones",
+            ["844670723892969522"] = "medallions",
+            ["844670899696173057"] = "dungeons",
             ["844669624121557062"] = "dungeon"
         }
     },
@@ -181,7 +181,8 @@ local Weights = {
             ["844670899696173057"] = "dungeons"
         },
         fixed = {
-            tokens = 0
+            tokens = 0,
+            random = 0
         }
     },
     ["Zora’s Fountain Open"] = {
@@ -271,11 +272,11 @@ local Weights = {
         name = "shopsanity",
         options = {
             "off",
-            0,
-            1,
-            2,
-            3,
-            4,
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
             "random",
         },
         def = "off",
@@ -547,7 +548,7 @@ local Static = {
         ["true"] = 0,
         ["false"] = 100
     },
-    shuffle_fortresskeys = { --What to do?
+    shuffle_hideoutkeys = { --What to do?
         vanilla = 100,
         overworld = 0,
         any_dungeon = 0,
@@ -587,6 +588,10 @@ local Static = {
         ["true"] = 0.0,
         ["false"] = 100
     },
+    misc_hints = {
+        ["true"] = 100,
+        ["false"] = 0
+    },
     mq_dungeons  = {
         ["0"]  = 100.0,
         0.0,
@@ -602,7 +607,7 @@ local Static = {
         0.0,
         0.0
     },
-    lacs_medallions = {
+    ganon_bosskey_medallions = {
         10, --1
         10, --2
         10, --3
@@ -610,12 +615,19 @@ local Static = {
         10, --5
         ["6"] = 50 --6
     },
-    lacs_stones = {
+    ganon_bosskey_stones = {
         25,
         25, --2
         ["3"] = 50 --3
     },
-    lacs_rewards = {
+    lacs_condition = {
+        vanilla = 100,
+        stones = 0,
+        medallions = 0,
+        dungeons = 0,
+        tokens = 0
+    },
+    ganon_bosskey_rewards = {
         6.25, --1
         6.25, --2
         6.25, --3
@@ -626,9 +638,10 @@ local Static = {
         6.25, --8
         ["9"] = 50
     },
-     all_reachable  = {
-        ["true"] = 100.0,
-        ["false"] = 0
+    reachable_locations  = {
+        ["all"] = 100.0,
+        ["goals"] = 0,
+        ["beatable"] = 0,
     },
     complete_mask_quest = { --What to do?
         ["true"] = 50.0,

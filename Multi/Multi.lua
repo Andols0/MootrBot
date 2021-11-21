@@ -122,7 +122,7 @@ local function LoadSpoiler(Data, ID, message)
     tinsert(Log.Items,items)
     tinsert(Log.Songs,songs)
     tinsert(Log.Equipment,equipment)
-    return true
+    return true, #Log.Settings
 end
 
 local function BuildCommon(NameOfStuff)
@@ -273,9 +273,9 @@ Multi.loadspoiler = { help = "Load in a spoiler.",
         local _, body = http.request("GET",message.attachment.url)
         local Data = json.decode(body)
         Data.settings.USER = message.author.name
-        local success = LoadSpoiler(Data, arg, message)
+        local success, worldnum = LoadSpoiler(Data, arg, message)
         if success then
-            message:reply("Spoiler log loaded")
+            message:reply("Spoiler log loaded for world "..worldnum)
             Save()
         end
     end
