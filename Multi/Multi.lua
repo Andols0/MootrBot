@@ -39,6 +39,17 @@ local Ignored = {
     misc_hints = true --Not used on the generator branch
 }
 
+local AllowedHintDists = {
+    balanced = true,
+    bingo = true,
+    scrubs = true,
+    strong = true,
+    tournament = true,
+    tournament_s3 = true,
+    useless = true,
+    very_strong = true
+}
+
 local NoRoman = [[
 Non roman branch detected. Assuming following settings.
 Mix entrance pools = off
@@ -50,10 +61,65 @@ Spoiler log needs to be generated with randomizer version 6 or later.
 ]]
 local ToNew = [[
 Warning
-This log is generated with a newer version of the randomizer (this script was last updated for 6.0.41).
+This log is generated with a newer version of the randomizer (this script was last updated for 6.2.1).
 All settings might not be supported.
 ]]
+local GBKCOMPAT = [[
+Ganons bosskey will be on LACS with the specified amount of rewards needed.
+]]
+local CTMC = [[
+Correct chest textures not added to this version of rando.
+Changing to Correct chest SIZE instead.
+]]
+local Compats = [[
+The individual branch is version 6.0.12
+I have tried to find tricks/settings name changes and implemented those.
+Not sure if i found them all.
+]]
+local BadHint = [[
+ERROR
+The specified hint distribution <%s> is not possible with this version of the randomizer.
+Please use one of the below:
+balanced
+bingo
+scrubs
+strong
+tournament   (Season 4)
+tournament_s3
+useless
+very_strong
+]]
+local HintInfo = [[
+---------------------------------------
+FOR YOUR INFORMATION!!
+You have specified season 5 hints but this version of the randomizer is to old for that.
+Unless you manualy edit the final plando file to one of the supported dists below the hints will be Season 4.
+Supported hints:
+balanced
+bingo
+scrubs
+strong
+tournament   (Season 4)
+tournament_s3
+useless
+very_strong
+-----------------------------------
+]]
 
+local RenamedTricks = {
+    ["Child Deadhand without Kokiri Sword"] = "Child Dead Hand without Kokiri Sword",
+    ['Gerudo Fortress "Kitchen" with No Additional Items'] = 'Thieves\' Hideout "Kitchen" with No Additional Items',
+    ["Gerudo Training Grounds MQ Left Side Silver Rupees with Hookshot"] = "Gerudo Training Ground MQ Left Side Silver Rupees with Hookshot",
+    ["Gerudo Training Grounds Left Side Silver Rupees without Hookshot"] = "Gerudo Training Ground Left Side Silver Rupees without Hookshot",
+    ["Gerudo Training Grounds MQ Left Side Silver Rupees without Hookshot"] = "Gerudo Training Ground MQ Left Side Silver Rupees without Hookshot",
+    ["Reach Gerudo Training Grounds Fake Wall Ledge with Hover Boots"] = "Reach Gerudo Training Ground Fake Wall Ledge with Hover Boots",
+    ["Gerudo Training Grounds MQ without Lens of Truth"] = "Gerudo Training Ground MQ without Lens of Truth",
+    ["Gerudo Training Grounds without Lens of Truth"] = "Gerudo Training Ground without Lens of Truth",
+}
+
+local RenamedSettings = {  --Settings that are renamed without any functional change
+    shuffle_fortresskeys = "shuffle_hideoutkeys",
+}
 
 local function LoadSpoiler(Data, ID, message)
     local Log = Logs[ID]
@@ -67,14 +133,38 @@ local function LoadSpoiler(Data, ID, message)
     Major, Minor, Build = tonumber(Major), tonumber(Minor), tonumber(Build)
     if Major < 6 then
         return false, message:reply(ToOld)
-    elseif Major == 6 and (Minor > 0 or Build > 41) then
+    elseif Major == 6 and Minor > 2 or (Minor == 2 and Build > 1) then
         message:reply(ToNew)
+    elseif Major == 6 and Minor > 0 or Build > 90 then
+        message:reply(Compats)
     end
     if not Name:find("R%-") then
         message:reply(NoRoman)
         Data.settings.mix_entrance_pools = "off"
         Data.settings.decouple_entrances = false
     end
+    if not(AllowedHintDists[Data.settings.hint_dist]) then
+        return false, message:reply(BadHint:format(Data.settings.hint_dist))
+    end
+    if Major == 6 and Minor >=1 and Data.settings.hint_dist == "tournament" then
+        message:reply(HintInfo)
+    end
+
+    --Simple renamings
+    --Tricks
+    for i, trick in ipairs(Data.settings.allowed_tricks) do
+        if RenamedTricks[trick] then
+            Data.settings.allowed_tricks[i] = RenamedTricks[trick]
+        end
+    end
+    --Settings
+    for i, trick in ipairs(Data.settings) do
+        if RenamedSettings[trick] then
+            Data.settings[i] = RenamedSettings[trick]
+        end
+    end
+
+    --Ganons Boss key stuff
     if Data.settings.shuffle_ganon_bosskey == "on_lacs" then --Compat in a settings name change.
         local lacs_condition = Data.settings.lacs_condition
         if lacs_condition == "vanilla" then
@@ -90,6 +180,39 @@ local function LoadSpoiler(Data, ID, message)
         end
     end
     Data.settings.lacs_condition = nil
+
+    if Data.settings.shuffle_ganon_bosskey == "stones" then
+        Data.settings.shuffle_ganon_bosskey = "lacs_stones"
+        Data.settings.lacs_stones = Data.settings.ganon_bosskey_stones
+        Data.settings.ganon_bosskey_stones = nil
+        message:reply(GBKCOMPAT)
+    elseif Data.settings.shuffle_ganon_bosskey == "medallions" then
+        Data.settings.shuffle_ganon_bosskey = "lacs_medallions"
+        Data.settings.lacs_medallions = Data.settings.ganon_bosskey_medallions
+        Data.settings.ganon_bosskey_medallions = nil
+        message:reply(GBKCOMPAT)
+    elseif Data.settings.shuffle_ganon_bosskey "dungeons" then
+        Data.settings.shuffle_ganon_bosskey = "lacs_dungeons"
+        Data.settings.lacs_dungeons = Data.settings.ganon_bosskey_rewards
+        Data.settings.ganon_bosskey_rewards = nil
+        message:reply(GBKCOMPAT)
+    elseif Data.settings.shuffle_ganon_bosskey "tokens" then
+        Data.settings.shuffle_ganon_bosskey = "lacs_tokens"
+        Data.settings.lacs_tokens = Data.settings.ganon_bosskey_tokens
+        Data.settings.ganon_bosskey_tokens = nil
+        message:reply(GBKCOMPAT)
+    end
+
+    --CTMC does not work.
+    if Data.settings.correct_chest_appearances then
+        if Data.settings.correct_chest_appearances ~= "off" then
+            Data.settings.correct_chest_sizes = true
+            message:reply(CTMC)
+        else
+            Data.settings.correct_chest_sizes = false
+        end
+        Data.settings.correct_chest_appearances = nil
+    end
 
     for k,v in pairs(Data.settings) do
         if k == "disabled_locations" then
