@@ -191,12 +191,12 @@ local function LoadSpoiler(Data, ID, message)
         Data.settings.lacs_medallions = Data.settings.ganon_bosskey_medallions
         Data.settings.ganon_bosskey_medallions = nil
         message:reply(GBKCOMPAT)
-    elseif Data.settings.shuffle_ganon_bosskey "dungeons" then
-        Data.settings.shuffle_ganon_bosskey = "lacs_dungeons"
+    elseif Data.settings.shuffle_ganon_bosskey == "dungeons" then
+        Data.settings.shuffle_ganon_bosskey = "lacs_rewards"
         Data.settings.lacs_dungeons = Data.settings.ganon_bosskey_rewards
         Data.settings.ganon_bosskey_rewards = nil
         message:reply(GBKCOMPAT)
-    elseif Data.settings.shuffle_ganon_bosskey "tokens" then
+    elseif Data.settings.shuffle_ganon_bosskey == "tokens" then
         Data.settings.shuffle_ganon_bosskey = "lacs_tokens"
         Data.settings.lacs_tokens = Data.settings.ganon_bosskey_tokens
         Data.settings.ganon_bosskey_tokens = nil
