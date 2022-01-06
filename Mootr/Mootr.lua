@@ -18,7 +18,7 @@ local  Perm = {}
 local Mootr = {help = "It's MOOTR ZOOTR"}
 
 local Weights, Constants = dofile("./Mootr/Weights.lua")
-local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons, Blitzcwd, Multicwd
+local Plandocwd, Patchcwd, RandoRando, Python, SeedFolder, Hashfile, Root, Icons, Multicwd
 
 do --Set some paths
     if Windows then
@@ -32,7 +32,6 @@ do --Set some paths
 
     Plandocwd = Root.."Rando/OoT-Randomizer/plando-random-settings"
     Patchcwd = Root.."Rando/OoT-Randomizer"
-    Blitzcwd = Root.."Rando/Blitz/OoT-Randomizer"
     --Multicwd = Root.."Rando/Multi/OoT-Randomizer"
     RandoRando = Root.."Rando/OoT-Randomizer/plando-random-settings/weights/MOoTR.json"
     SeedFolder = Root.."Rando/Seeds/"
@@ -86,7 +85,8 @@ end
 
 local function ResolveEmoji(message, Emoji)
     if Emoji:match("^%d+") then
-        return message.guild.emojis:get(Emoji)
+        return client:getGuild("389836194516566018").emojis:get(Emoji)
+        --return message.guild.emojis:get(Emoji)
     else
         return Emoji
     end
@@ -336,7 +336,8 @@ end
 
 Mootr.weight = {help = "Generates the weights file",
     f = function(mia, SkipPost, overwrite) -- mia = "message interactions"
-        local Settings = Mootrsettings[mia.guild.id] --["389836194516566018"]
+        local Settings = Mootrsettings["389836194516566018"] --for debug
+        --local Settings = mia.guild.id
         if not(Settings) or (not(Settings) and not(Settings.channel)) then
             mia:reply("You need to set a voting channel")
         end
@@ -417,7 +418,7 @@ local function CreatePatch(interaction, Info, Mode)
     local Patchstderr = uv.new_pipe(false)
     local randolog = ""
     local time = os.time()
-    local Cwd = Mode == "blitz" and Blitzcwd or Mode == "multi" and Multicwd or Patchcwd
+    local Cwd = Mode == Mode == "multi" and Multicwd or Patchcwd
     uv.spawn(Python,{
         stdio = {0, 1, Patchstderr},
         cwd = Cwd,
@@ -429,6 +430,7 @@ local function CreatePatch(interaction, Info, Mode)
             coroutine.wrap(function()
                 fs.writeFileSync(Patchcwd.."/Roms/Log.txt", randolog)
                 local file, filetype = randolog:match("Created patchfile at: .+[/\\](.-)(%.zpfz?)")
+                print(filetype)
                 p(file)
                 table.insert(Seeds.Seed,file)
                 Info.Roller = interaction.member.name
@@ -639,13 +641,14 @@ function CBs.publish(interaction)
     Publishtemplate.fields[4].value = Info.No
     Publishtemplate.fields[5].value = Info.Cat
     --print("Filled template")
-    interaction.guild:getChannel(Settings.public):send {
+    p(SeedFolder..Seed..Info.filetype)
+    print(interaction.guild:getChannel(Settings.public):send {
         embed = Publishtemplate,
         files = {
             SeedFolder..Seed..Info.filetype,
             Hashfile
         }
-    }
+    })
     interaction:followUp("Seed Published")
     --print("Message sent")
 end

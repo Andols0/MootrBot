@@ -78,7 +78,7 @@ local function multivote(self, votes)
     local Tot = votes.Tot
     local IDs = self.ids
     local fixed = self.fixed or {}
-    local max, almostmax = {value = 0}
+    local max, almostmax = {value = 0}, {value = 0}
     local Weights = {}
     local Split = self.split or {}
     for Id, value in pairs(Vote) do
@@ -445,25 +445,26 @@ local Weights = {
             "strong",
             "very_strong",
             "scrubs",
+            "tournament",
             "tournament_s3"
         },
         fixed = {
             useless = 0,
             balanced = 0,
             bingo = 0,
-            tournament = 0,
             blitz = 0
         },
         def = "scrubs",
         f = Multichoice
     },
     ["Chest Size Match Contents"] = {
-        name = "correct_chest_sizes",
+        name = "correct_chest_appearances",
         options = {
-            "true",
-            "false"
+            "off",
+            "textures",
+            "sizes"
         },
-        def = "false",
+        def = "off",
         f = Multichoice
     },
     ["Damage Multiplier (limit to 0.5x, normal and 2x)"] = {
