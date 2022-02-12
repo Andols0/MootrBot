@@ -482,6 +482,9 @@ function CreatePlando(interaction, Info, Mode, Overwrite)
             end
             coroutine.wrap(function()
                 interaction:followUp("Settings file generated\nStarting randomizer")
+                interaction.member:send{
+                    file = Plandocwd.."/blind_random_settings.json"
+                }
             end)()
            -- if true then return end
             CreatePatch(interaction, Info, Mode)
